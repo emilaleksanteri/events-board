@@ -2,19 +2,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"database/sql"
 	"flag"
-	"fmt"
-	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 const VERSION = "1.0.0"
@@ -78,7 +75,6 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
-
 	defer db.Close()
 
 	logger.Info("database connection pool established")
@@ -86,9 +82,10 @@ func main() {
 	app := application{
 		config: cfg,
 		logger: logger,
+		db:     db,
 	}
 
-	err = app.Serve()
+	err = app.serve()
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
