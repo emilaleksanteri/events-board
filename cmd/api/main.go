@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/emilaleksanteri/pubsub/internal/data"
 	_ "github.com/lib/pq"
 )
 
@@ -45,6 +46,7 @@ type application struct {
 	config config
 	logger *slog.Logger
 	wg     sync.WaitGroup
+	models data.Models
 }
 
 func main() {
@@ -82,7 +84,7 @@ func main() {
 	app := application{
 		config: cfg,
 		logger: logger,
-		db:     db,
+		models: data.NewModels(db),
 	}
 
 	err = app.serve()
