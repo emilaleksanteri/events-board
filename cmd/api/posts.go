@@ -44,3 +44,29 @@ func (app *application) cratePostHandler(w http.ResponseWriter, r *http.Request)
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) listPostsHandler(w http.ResponseWriter, r *http.Request) {
+	var input data.Filters
+
+	v := validator.New()
+	qs := r.URL.Query()
+
+	input.Take = app.readInt(qs, "take", 20, v)
+	input.Offset = app.readInt(qs, "offset", 0, v)
+
+	if data.ValidateFileters(v, input); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	posts, metadata, err := app.models.Posts.GetAll(input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"posts": posts, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/emilaleksanteri/pubsub/internal/validator"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -110,4 +112,18 @@ func (app *application) background(fn func()) {
 
 		fn()
 	}()
+}
+
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+	s := qs.Get(key)
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		v.AddError(key, "must be an int val")
+		return defaultValue
+	}
+	return i
 }
