@@ -3,7 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
@@ -18,6 +18,7 @@ type Post struct {
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	Comments  []Comment `json:"comments"`
 }
 
 func (p PostModel) Insert(post *Post) error {
@@ -39,7 +40,7 @@ func (p PostModel) GetAll(filters Filters) ([]*Post, Metadata, error) {
 	query := `
 	SELECT post.id, post.body, post.created_at, post.updated_at, COUNT(comment.id) AS comments_count, MAX(comment.created_at) AS last_comment_at
 	FROM posts AS post
-	LEFT JOIN comments AS comment ON comment.post_id = post.id
+	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	GROUP BY post.id
 	ORDER BY post.created_at DESC
 	LIMIT $1 OFFSET $2
@@ -90,7 +91,64 @@ func (p PostModel) GetAll(filters Filters) ([]*Post, Metadata, error) {
 	metadata := calculateMetadata(numOfPosts)
 
 	return posts, metadata, nil
+}
 
+func (p PostModel) Get(id int64) (*Post, error) {
+	var post Post
+
+	query := `
+	SELECT id, body, created_at, updated_at
+	FROM posts
+	WHERE id = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := p.DB.QueryRowContext(ctx, query, id).Scan(
+		&post.Id,
+		&post.Body,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &post, nil
+}
+
+func (p PostModel) Delete(id int64) error {
+	query := `
+	DELETE FROM
+	posts
+	WHERE id = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := p.DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
 }
 
 func ValidPost(v *validator.Validator, post *Post) {
