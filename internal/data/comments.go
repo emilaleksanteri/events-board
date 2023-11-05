@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
@@ -15,12 +14,13 @@ type CommentModel struct {
 }
 
 type Comment struct {
-	Id          int64      `json:"id"`
-	PostId      int64      `json:"post_id"`
-	SubComments []*Comment `json:"sub_comments"`
-	Body        string     `json:"body"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	Id             int64      `json:"id"`
+	PostId         int64      `json:"post_id"`
+	SubComments    []*Comment `json:"sub_comments"`
+	Body           string     `json:"body"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	HasSubComments bool       `json:"has_sub_comments"`
 }
 
 func (c CommentModel) Insert(comment *Comment, path string) error {

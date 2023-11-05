@@ -16,6 +16,8 @@ func (app *application) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodPost, "/v1/posts", app.cratePostHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/posts", app.listPostsHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/posts/:id", app.getPostHandler)
+	router.HandlerFunc(http.MethodDelete, "/v1/posts/:id", app.deletePostHandler)
 
 	return app.recoverPanic(app.enableCORS(app.rateLimit(router)))
 }
