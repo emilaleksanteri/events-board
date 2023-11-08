@@ -23,7 +23,7 @@ type Comment struct {
 	HasSubComments bool       `json:"has_sub_comments"`
 }
 
-func (c CommentModel) Insert(comment *Comment, path string) error {
+func (c CommentModel) Insert(comment *Comment) error {
 	query := `
 	INSERT INTO comments (post_id, body, path)
 	VALUES ($1, $2, '0')

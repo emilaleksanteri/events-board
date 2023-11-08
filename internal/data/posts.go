@@ -22,6 +22,16 @@ type Post struct {
 	Comments  []Comment `json:"comments"`
 }
 
+type PostMetadata struct {
+	LastCommentAt time.Time `json:"last_comment_at"`
+	CommentsCount int       `json:"comments_count"`
+}
+
+type PostListed struct {
+	Post     *Post         `json:"post"`
+	Metadata *PostMetadata `json:"metadata"`
+}
+
 func (p PostModel) Insert(post *Post) error {
 	query := `
 	INSERT INTO posts (body)
@@ -36,7 +46,7 @@ func (p PostModel) Insert(post *Post) error {
 		Scan(&post.Id, &post.CreatedAt, &post.UpdatedAt)
 }
 
-func (p PostModel) GetAll(filters Filters) ([]*Post, Metadata, error) {
+func (p PostModel) GetAll(filters Filters) ([]*PostListed, Metadata, error) {
 	// query get num of comments and most recent comment
 	query := `
 	SELECT post.id, post.body, post.created_at, post.updated_at, COUNT(comment.id) AS comments_count, MAX(comment.created_at) AS last_comment_at
@@ -56,13 +66,16 @@ func (p PostModel) GetAll(filters Filters) ([]*Post, Metadata, error) {
 	}
 
 	defer rows.Close()
-	posts := []*Post{}
+	var posts []*PostListed
 	numOfPosts := 0
 
 	for rows.Next() {
+		var postListed PostListed
 		var post Post
+		var postMetadata PostMetadata
+
 		commentsCount := 0
-		var lastCommentAt any
+		var lastCommentAt sql.NullTime
 
 		err := rows.Scan(
 			&post.Id,
@@ -73,15 +86,29 @@ func (p PostModel) GetAll(filters Filters) ([]*Post, Metadata, error) {
 			&lastCommentAt,
 		)
 
-		if lastCommentAt != nil {
-			lastCommentAt = lastCommentAt.(time.Time)
-		}
-
 		if err != nil {
 			return nil, Metadata{}, err
 		}
 
-		posts = append(posts, &post)
+		if lastCommentAt.Valid {
+			timeTemp, err := lastCommentAt.Value()
+			if err != nil {
+				return nil, Metadata{}, err
+			}
+
+			asTime, ok := timeTemp.(time.Time)
+			if !ok {
+				return nil, Metadata{}, errors.New("could not convert time")
+			}
+
+			postMetadata.LastCommentAt = asTime
+		}
+
+		postMetadata.CommentsCount = commentsCount
+		postListed.Post = &post
+		postListed.Metadata = &postMetadata
+
+		posts = append(posts, &postListed)
 	}
 
 	if err = rows.Err(); err != nil {

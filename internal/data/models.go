@@ -11,11 +11,13 @@ var (
 )
 
 type Models struct {
-	Posts PostModel
+	Posts    PostModel
+	Comments CommentModel
 }
 
 func NewModels(db *sql.DB) Models {
 	return Models{
-		Posts: PostModel{DB: db},
+		Posts:    PostModel{DB: db},
+		Comments: CommentModel{DB: db},
 	}
 }
