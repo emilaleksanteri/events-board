@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
@@ -14,13 +15,43 @@ type CommentModel struct {
 }
 
 type Comment struct {
-	Id             int64      `json:"id"`
-	PostId         int64      `json:"post_id"`
-	SubComments    []*Comment `json:"sub_comments"`
-	Body           string     `json:"body"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	HasSubComments bool       `json:"has_sub_comments"`
+	Id               int64      `json:"id"`
+	PostId           int64      `json:"post_id"`
+	SubComments      []*Comment `json:"sub_comments"`
+	Body             string     `json:"body"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	NumOfSubComments int        `json:"num_of_sub_comments"`
+}
+
+type SqlComment struct {
+	Id        sql.NullInt64
+	PostId    sql.NullInt64
+	Body      sql.NullString
+	CreatedAt sql.NullTime
+	UpdatedAt sql.NullTime
+}
+
+func getValidComment(sql *SqlComment, c *Comment) {
+	if sql.Id.Valid {
+		c.Id = sql.Id.Int64
+	}
+
+	if sql.Body.Valid {
+		c.Body = sql.Body.String
+	}
+
+	if sql.CreatedAt.Valid {
+		c.CreatedAt = sql.CreatedAt.Time
+	}
+
+	if sql.UpdatedAt.Valid {
+		c.UpdatedAt = sql.UpdatedAt.Time
+	}
+
+	if sql.PostId.Valid {
+		c.PostId = sql.PostId.Int64
+	}
 }
 
 func (c CommentModel) Insert(comment *Comment) error {
@@ -114,11 +145,11 @@ func (c CommentModel) Get(id int64) (*Comment, error) {
 func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
 	query := `
 	INSERT INTO comments (post_id, body, path)
-	VALUES ($1, $2, '$3')
+	VALUES ($1, $2, $3)
 	RETURNING id, created_at, updated_at
 	`
 
-	args := []any{comment.PostId, comment.Body, parentId}
+	args := []any{comment.PostId, comment.Body, fmt.Sprintf("%v", parentId)}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

@@ -42,3 +42,47 @@ func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Requ
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) createSubCommentHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	var input struct {
+		Body   string `json:"body"`
+		PostId int64  `json:"post_id"`
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	valid := validator.New()
+
+	comment := &data.Comment{
+		Body:   input.Body,
+		PostId: input.PostId,
+	}
+
+	data.ValidateComment(valid, comment)
+	if !valid.Valid() {
+		app.failedValidationResponse(w, r, valid.Errors)
+		return
+	}
+
+	err = app.models.Comments.InsertSubComment(comment, id)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"comment": comment}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}

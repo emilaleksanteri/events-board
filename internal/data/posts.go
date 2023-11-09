@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -131,7 +132,7 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 
 func (p PostModel) Get(id int64) (*Post, error) {
 	query := `
-	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, comment.body, comment.created_at, comment.updated_at
+	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, comment.body, comment.created_at, comment.updated_at, comment.post_id
 	FROM posts as post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	WHERE post.id = $1
@@ -159,13 +160,7 @@ func (p PostModel) Get(id int64) (*Post, error) {
 	var comments []Comment
 
 	for rows.Next() {
-		comment := struct {
-			Id        sql.NullInt64
-			Body      sql.NullString
-			CreatedAt sql.NullTime
-			UpdatedAt sql.NullTime
-		}{}
-
+		var comment SqlComment
 		var realComment Comment
 
 		err := rows.Scan(
@@ -177,26 +172,23 @@ func (p PostModel) Get(id int64) (*Post, error) {
 			&comment.Body,
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
+			&comment.PostId,
 		)
 
 		if err != nil {
 			return nil, err
 		}
 
+		getValidComment(&comment, &realComment)
+
 		if comment.Id.Valid {
-			realComment.Id = comment.Id.Int64
-		}
-
-		if comment.Body.Valid {
-			realComment.Body = comment.Body.String
-		}
-
-		if comment.CreatedAt.Valid {
-			realComment.CreatedAt = comment.CreatedAt.Time
-		}
-
-		if comment.UpdatedAt.Valid {
-			realComment.UpdatedAt = comment.UpdatedAt.Time
+			query := `select COUNT(*) from comments where path = $1`
+			numOfSubComments := 0
+			err = p.DB.QueryRowContext(ctx, query, fmt.Sprintf("%v", realComment.Id)).Scan(&numOfSubComments)
+			if err != nil {
+				return nil, err
+			}
+			realComment.NumOfSubComments = numOfSubComments
 		}
 
 		if realComment.Id != 0 {
