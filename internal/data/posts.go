@@ -25,9 +25,10 @@ type Post struct {
 type PostMetadata struct {
 	LastCommentAt time.Time `json:"last_comment_at"`
 	CommentsCount int       `json:"comments_count"`
+	LatestComment string    `json:"latest_comment"`
 }
 
-type PostListed struct {
+type PostData struct {
 	Post     *Post         `json:"post"`
 	Metadata *PostMetadata `json:"metadata"`
 }
@@ -46,10 +47,11 @@ func (p PostModel) Insert(post *Post) error {
 		Scan(&post.Id, &post.CreatedAt, &post.UpdatedAt)
 }
 
-func (p PostModel) GetAll(filters Filters) ([]*PostListed, Metadata, error) {
+func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 	// query get num of comments and most recent comment
 	query := `
-	SELECT post.id, post.body, post.created_at, post.updated_at, COUNT(comment.id) AS comments_count, MAX(comment.created_at) AS last_comment_at
+	SELECT post.id, post.body, post.created_at, post.updated_at, COUNT(comment.id) AS comments_count, 
+	MAX(comment.created_at) AS last_comment_at, MAX(comment.body) as last_comment_body
 	FROM posts AS post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	GROUP BY post.id
@@ -66,13 +68,14 @@ func (p PostModel) GetAll(filters Filters) ([]*PostListed, Metadata, error) {
 	}
 
 	defer rows.Close()
-	var posts []*PostListed
+	var posts []*PostData
 	numOfPosts := 0
 
 	for rows.Next() {
-		var postListed PostListed
+		var postListed PostData
 		var post Post
 		var postMetadata PostMetadata
+		var lastCommentBody sql.NullString
 
 		commentsCount := 0
 		var lastCommentAt sql.NullTime
@@ -84,6 +87,7 @@ func (p PostModel) GetAll(filters Filters) ([]*PostListed, Metadata, error) {
 			&post.UpdatedAt,
 			&commentsCount,
 			&lastCommentAt,
+			&lastCommentBody,
 		)
 
 		if err != nil {
@@ -102,6 +106,10 @@ func (p PostModel) GetAll(filters Filters) ([]*PostListed, Metadata, error) {
 			}
 
 			postMetadata.LastCommentAt = asTime
+		}
+
+		if lastCommentBody.Valid {
+			postMetadata.LatestComment = lastCommentBody.String
 		}
 
 		postMetadata.CommentsCount = commentsCount
