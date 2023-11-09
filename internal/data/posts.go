@@ -180,18 +180,16 @@ func (p PostModel) Get(id int64) (*Post, error) {
 		}
 
 		getValidComment(&comment, &realComment)
-
-		if comment.Id.Valid {
+		if realComment.Id != 0 {
+			// TODO put this into main sql query plz
 			query := `select COUNT(*) from comments where path = $1`
 			numOfSubComments := 0
 			err = p.DB.QueryRowContext(ctx, query, fmt.Sprintf("%v", realComment.Id)).Scan(&numOfSubComments)
 			if err != nil {
 				return nil, err
 			}
-			realComment.NumOfSubComments = numOfSubComments
-		}
 
-		if realComment.Id != 0 {
+			realComment.NumOfSubComments = numOfSubComments
 			comments = append(comments, realComment)
 		}
 	}
