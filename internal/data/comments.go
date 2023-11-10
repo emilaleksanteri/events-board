@@ -76,23 +76,22 @@ func (c CommentModel) Insert(comment *Comment) error {
 
 func (c CommentModel) Get(id int64) (*Comment, error) {
 	query := `
-	SELECT id, post_id, body, created_at, updated_at
-	FROM comments
+	SELECT co.id, co.post_id, co.body, co.created_at, co.updated_at, co.path,
+	(select count(*) from comments where path = co.id::text::ltree) as num_of_sub_comments
+	FROM comments as co
 	WHERE id = $1
+	UNION
+	SELECT c.id, c.post_id, c.body, c.created_at, c.updated_at, c.path,
+	(select count(*) from comments where path = c.id::text::ltree) as num_of_sub_comments
+	FROM comments as c
+	WHERE path <@ $1::text::ltree
+	ORDER BY created_at ASC
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var comment Comment
-	err := c.DB.QueryRowContext(ctx, query, id).Scan(
-		&comment.Id,
-		&comment.PostId,
-		&comment.Body,
-		&comment.CreatedAt,
-		&comment.UpdatedAt,
-	)
-
+	rows, err := c.DB.QueryContext(ctx, query, id)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -102,21 +101,9 @@ func (c CommentModel) Get(id int64) (*Comment, error) {
 		}
 	}
 
-	query = `
-	SELECT id, post_id, body, created_at, updated_at
-	FROM comments
-	WHERE path <@ '$1'
-	ORDER BY created_at ASC
-	`
-
-	rows, err := c.DB.QueryContext(ctx, query, id)
-	if err != nil {
-		return nil, err
-	}
-
 	defer rows.Close()
-	comments := []*Comment{}
-
+	var comment *Comment
+	var comments []*Comment
 	for rows.Next() {
 		var comment Comment
 
@@ -139,7 +126,7 @@ func (c CommentModel) Get(id int64) (*Comment, error) {
 	}
 
 	comment.SubComments = comments
-	return &comment, nil
+	return comment, nil
 }
 
 func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
