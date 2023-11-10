@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
@@ -151,7 +150,6 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 	rows, err := p.DB.QueryContext(ctx, query, args...)
 
 	if err != nil {
-		log.Println(err)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrRecordNotFound
