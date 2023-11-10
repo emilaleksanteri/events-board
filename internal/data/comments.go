@@ -99,7 +99,6 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-
 	args := []any{id, filters.Take, filters.Offset}
 	rows, err := c.DB.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -116,11 +115,11 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 	var comments []*Comment
 
 	for rows.Next() {
-		var tempComment Comment
-		var tempParentId string
+		tempComment := Comment{}
+		tempParentId := ""
 		numSubComments := 0
 
-		err := rows.Scan(
+		err = rows.Scan(
 			&tempComment.Id,
 			&tempComment.PostId,
 			&tempComment.Body,
@@ -153,8 +152,13 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 		return nil, err
 	}
 
+	if comment == nil {
+		return nil, ErrRecordNotFound
+	}
+
 	comment.SubComments = comments
 	return comment, nil
+
 }
 
 func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
@@ -178,6 +182,32 @@ func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c CommentModel) DeleteComment(id int64) error {
+	query := `
+	DELETE FROM comments
+	WHERE id = $1 OR path <@ $1::text::ltree
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := c.DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
 	}
 
 	return nil

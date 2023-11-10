@@ -198,6 +198,10 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 		return nil, err
 	}
 
+	if post.Id == 0 {
+		return nil, ErrRecordNotFound
+	}
+
 	post.Comments = comments
 	return &post, nil
 
