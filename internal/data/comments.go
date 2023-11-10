@@ -75,25 +75,33 @@ func (c CommentModel) Insert(comment *Comment) error {
 	return nil
 }
 
-func (c CommentModel) Get(id int64) (*Comment, error) {
-	// TODO make sure it works
+func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 	query := `
-	SELECT co.id, co.post_id, co.body, co.created_at, co.updated_at, co.path,
-	(select count(*) from comments where path = co.id::text::ltree) as num_of_sub_comments
-	FROM comments as co
-	WHERE id = $1
-	UNION
-	SELECT c.id, c.post_id, c.body, c.created_at, c.updated_at, c.path,
-	(select count(*) from comments where path = c.id::text::ltree) as num_of_sub_comments
-	FROM comments as c
-	WHERE path <@ $1::text::ltree
-	ORDER BY created_at ASC
+	WITH main_comment as (
+		SELECT id, post_id, body, created_at, updated_at, path,
+		(select count(*) from comments where path = id::text::ltree) as num_of_sub_comments
+		FROM comments
+		WHERE id = $1
+	),
+	sub_comments as (
+		SELECT id, post_id, body, created_at, updated_at, path,
+		(select count(*) from comments where path = id::text::ltree) as num_of_sub_comments
+		FROM comments
+		WHERE path <@ $1::text::ltree
+		ORDER BY created_at ASC
+		LIMIT $2
+		OFFSET $3
+	)
+	SELECT * from main_comment
+	UNION ALL
+	SELECT * FROM sub_comments
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := c.DB.QueryContext(ctx, query, id)
+	args := []any{id, filters.Take, filters.Offset}
+	rows, err := c.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):

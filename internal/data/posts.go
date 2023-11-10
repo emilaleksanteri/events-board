@@ -48,7 +48,6 @@ func (p PostModel) Insert(post *Post) error {
 }
 
 func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
-	// query get num of comments and most recent comment
 	query := `
 	SELECT post.id, post.body, post.created_at, post.updated_at, 
 	COUNT(comment.id) AS comments_count, 
@@ -130,7 +129,7 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 	return posts, metadata, nil
 }
 
-func (p PostModel) Get(id int64) (*Post, error) {
+func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 	query := `
 	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, 
 	comment.body, comment.created_at, comment.updated_at, comment.post_id,
@@ -143,11 +142,13 @@ func (p PostModel) Get(id int64) (*Post, error) {
 	WHERE post.id = $1
 	GROUP BY post.id, comment.id
 	ORDER BY post.created_at DESC, comment.created_at ASC
+	LIMIT $2 OFFSET $3
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	rows, err := p.DB.QueryContext(ctx, query, id)
+	args := []any{id, filters.Take, filters.Offset}
+	rows, err := p.DB.QueryContext(ctx, query, args...)
 
 	if err != nil {
 		log.Println(err)

@@ -90,12 +90,25 @@ func (app *application) createSubCommentHandler(w http.ResponseWriter, r *http.R
 
 func (app *application) getCommentHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
+	var input data.Filters
+
 	if err != nil {
 		app.notFoundResponse(w, r)
 		return
 	}
 
-	comment, err := app.models.Comments.Get(id)
+	valid := validator.New()
+	qs := r.URL.Query()
+
+	input.Take = app.readInt(qs, "take", 10, valid)
+	input.Offset = app.readInt(qs, "offset", 0, valid)
+
+	if data.ValidateFileters(valid, input); !valid.Valid() {
+		app.failedValidationResponse(w, r, valid.Errors)
+		return
+	}
+
+	comment, err := app.models.Comments.Get(id, &input)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):

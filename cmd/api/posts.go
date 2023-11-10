@@ -74,12 +74,25 @@ func (app *application) listPostsHandler(w http.ResponseWriter, r *http.Request)
 
 func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
+	var input data.Filters
+
 	if err != nil {
 		app.notFoundResponse(w, r)
 		return
 	}
 
-	post, err := app.models.Posts.Get(id)
+	valid := validator.New()
+	qs := r.URL.Query()
+
+	input.Take = app.readInt(qs, "take", 10, valid)
+	input.Offset = app.readInt(qs, "offset", 0, valid)
+
+	if data.ValidateFileters(valid, input); !valid.Valid() {
+		app.failedValidationResponse(w, r, valid.Errors)
+		return
+	}
+
+	post, err := app.models.Posts.Get(id, &input)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
