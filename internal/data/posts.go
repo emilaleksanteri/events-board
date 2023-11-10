@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -52,7 +51,7 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 	// query get num of comments and most recent comment
 	query := `
 	SELECT post.id, post.body, post.created_at, post.updated_at, COUNT(comment.id) AS comments_count, 
-	MAX(comment.created_at) AS last_comment_at, MAX(comment.body) as last_comment_body
+	MAX(comment.created_at) AS last_comment_at, MAX(comment.body) as last_comment_body,
 	FROM posts AS post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	GROUP BY post.id
@@ -132,7 +131,8 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 
 func (p PostModel) Get(id int64) (*Post, error) {
 	query := `
-	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, comment.body, comment.created_at, comment.updated_at, comment.post_id
+	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, comment.body, comment.created_at, comment.updated_at, comment.post_id,
+	(select count(*) from comments where path = comment.id::text::ltree) as num_of_sub_comments
 	FROM posts as post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	WHERE post.id = $1
@@ -162,6 +162,7 @@ func (p PostModel) Get(id int64) (*Post, error) {
 	for rows.Next() {
 		var comment SqlComment
 		var realComment Comment
+		numOfSubComments := 0
 
 		err := rows.Scan(
 			&post.Id,
@@ -173,6 +174,7 @@ func (p PostModel) Get(id int64) (*Post, error) {
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
 			&comment.PostId,
+			&numOfSubComments,
 		)
 
 		if err != nil {
@@ -181,14 +183,6 @@ func (p PostModel) Get(id int64) (*Post, error) {
 
 		getValidComment(&comment, &realComment)
 		if realComment.Id != 0 {
-			// TODO put this into main sql query plz
-			query := `select COUNT(*) from comments where path = $1`
-			numOfSubComments := 0
-			err = p.DB.QueryRowContext(ctx, query, fmt.Sprintf("%v", realComment.Id)).Scan(&numOfSubComments)
-			if err != nil {
-				return nil, err
-			}
-
 			realComment.NumOfSubComments = numOfSubComments
 			comments = append(comments, realComment)
 		}
