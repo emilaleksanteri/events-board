@@ -13,6 +13,7 @@ import (
 
 	"github.com/emilaleksanteri/pubsub/internal/data"
 	_ "github.com/lib/pq"
+	redis "github.com/redis/go-redis/v9"
 )
 
 const VERSION = "1.0.0"
@@ -47,6 +48,7 @@ type application struct {
 	logger *slog.Logger
 	wg     sync.WaitGroup
 	models data.Models
+	redis  *redis.Client
 }
 
 func main() {
@@ -81,6 +83,15 @@ func main() {
 
 	logger.Info("database connection pool established")
 
+	redisClient, err := createRedisClient(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	defer redisClient.Close()
+
+	logger.Info("redis connection pool established")
+
 	app := application{
 		config: cfg,
 		logger: logger,
@@ -92,7 +103,22 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
+}
 
+func createRedisClient(cfg config) (*redis.Client, error) {
+	client := redis.NewClient(&redis.Options{
+		Addr: cfg.redis.redisAddr,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := client.Ping(ctx).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
 func openDB(cfg config) (*sql.DB, error) {
