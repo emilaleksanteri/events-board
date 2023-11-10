@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
@@ -22,6 +23,7 @@ type Comment struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 	NumOfSubComments int        `json:"num_of_sub_comments"`
+	ParentId         int64      `json:"parent_id"`
 }
 
 type SqlComment struct {
@@ -75,6 +77,7 @@ func (c CommentModel) Insert(comment *Comment) error {
 }
 
 func (c CommentModel) Get(id int64) (*Comment, error) {
+	// TODO make sure it works
 	query := `
 	SELECT co.id, co.post_id, co.body, co.created_at, co.updated_at, co.path,
 	(select count(*) from comments where path = co.id::text::ltree) as num_of_sub_comments
@@ -104,21 +107,39 @@ func (c CommentModel) Get(id int64) (*Comment, error) {
 	defer rows.Close()
 	var comment *Comment
 	var comments []*Comment
+
 	for rows.Next() {
-		var comment Comment
+		var tempComment Comment
+		var tempParentId string
+		numSubComments := 0
 
 		err := rows.Scan(
-			&comment.Id,
-			&comment.PostId,
-			&comment.Body,
-			&comment.CreatedAt,
-			&comment.UpdatedAt,
+			&tempComment.Id,
+			&tempComment.PostId,
+			&tempComment.Body,
+			&tempComment.CreatedAt,
+			&tempComment.UpdatedAt,
+			&tempParentId,
+			&numSubComments,
 		)
+
 		if err != nil {
 			return nil, err
 		}
 
-		comments = append(comments, &comment)
+		tempParentIdInt, err := strconv.ParseInt(tempParentId, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		tempComment.ParentId = tempParentIdInt
+		tempComment.NumOfSubComments = numSubComments
+
+		if tempComment.Id != id {
+			comments = append(comments, &tempComment)
+		} else {
+			comment = &tempComment
+		}
 	}
 
 	if err = rows.Err(); err != nil {
@@ -133,7 +154,7 @@ func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
 	query := `
 	INSERT INTO comments (post_id, body, path)
 	VALUES ($1, $2, $3)
-	RETURNING id, created_at, updated_at
+	RETURNING id, created_at, updated_at, path::text::bigint
 	`
 
 	args := []any{comment.PostId, comment.Body, fmt.Sprintf("%v", parentId)}
@@ -145,6 +166,7 @@ func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
 		&comment.Id,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
+		&comment.ParentId,
 	)
 
 	if err != nil {

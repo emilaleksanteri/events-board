@@ -50,8 +50,9 @@ func (p PostModel) Insert(post *Post) error {
 func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 	// query get num of comments and most recent comment
 	query := `
-	SELECT post.id, post.body, post.created_at, post.updated_at, COUNT(comment.id) AS comments_count, 
-	MAX(comment.created_at) AS last_comment_at, MAX(comment.body) as last_comment_body,
+	SELECT post.id, post.body, post.created_at, post.updated_at, 
+	COUNT(comment.id) AS comments_count, 
+	MAX(comment.created_at) AS last_comment_at, MAX(comment.body) as last_comment_body
 	FROM posts AS post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	GROUP BY post.id
@@ -131,8 +132,12 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 
 func (p PostModel) Get(id int64) (*Post, error) {
 	query := `
-	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, comment.body, comment.created_at, comment.updated_at, comment.post_id,
-	(select count(*) from comments where path = comment.id::text::ltree) as num_of_sub_comments
+	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, 
+	comment.body, comment.created_at, comment.updated_at, comment.post_id,
+	(select count(*) 
+	from comments 
+	where path = comment.id::text::ltree
+	) as num_of_sub_comments
 	FROM posts as post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	WHERE post.id = $1
