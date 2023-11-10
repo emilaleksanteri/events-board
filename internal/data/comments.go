@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -153,11 +152,11 @@ func (c CommentModel) Get(id int64) (*Comment, error) {
 func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
 	query := `
 	INSERT INTO comments (post_id, body, path)
-	VALUES ($1, $2, $3)
+	VALUES ($1, $2, $3::text::ltree)
 	RETURNING id, created_at, updated_at, path::text::bigint
 	`
 
-	args := []any{comment.PostId, comment.Body, fmt.Sprintf("%v", parentId)}
+	args := []any{comment.PostId, comment.Body, parentId}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
