@@ -102,22 +102,22 @@ func main() {
 		eventChan: make(chan *redis.Message),
 	}
 
-	sub := app.redis.Subscribe(context.Background(), POST_ADDED, COMMENT_ADDED)
+	subscribeTo := []string{POST_ADDED, COMMENT_ADDED}
+	sub := app.redis.Subscribe(context.Background(), subscribeTo...)
 	iface, err := sub.Receive(context.Background())
 	if err != nil {
 		os.Exit(1)
 		return
 	}
 
+	// some redis related misc stuff to help keep track
+	for _, channel := range subscribeTo {
+		logger.Info(fmt.Sprintf("subscribed to %s", channel))
+	}
+
 	switch iface.(type) {
 	case *redis.Subscription:
-		fmt.Println("subscribed to channel")
-	case *redis.Message:
-		fmt.Println("message received")
-	case *redis.Pong:
-		fmt.Println("pong received")
-	default:
-		os.Exit(1)
+		logger.Info("subscription received")
 	}
 
 	go func() {

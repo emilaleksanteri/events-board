@@ -138,3 +138,15 @@ func (app *application) deletePostHandler(w http.ResponseWriter, r *http.Request
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) handleSubscribeToPosts(w http.ResponseWriter, r *http.Request) {
+	err := app.handleServerEvents(w, r, POST_ADDED)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrSseNotSupported):
+			app.sSENotSupportedResponse(w, r, err)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+	}
+}

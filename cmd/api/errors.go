@@ -18,6 +18,11 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 	}
 }
 
+func (app *application) sSENotSupportedResponse(w http.ResponseWriter, r *http.Request, err error) {
+	message := "the subsciber does not support server sent events"
+	app.errorResponse(w, r, http.StatusInternalServerError, message)
+}
+
 func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.logError(r, err)
 	message := "the server encountared a problem and could not process this request :("

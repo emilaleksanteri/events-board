@@ -18,13 +18,13 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/posts", app.listPostsHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/posts/:id", app.getPostHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/posts/:id", app.deletePostHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/subscribe/posts", app.handleSubscribeToPosts)
 
 	router.HandlerFunc(http.MethodPost, "/v1/comments", app.createCommentHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/comments/:id", app.createSubCommentHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/comments/:id", app.getCommentHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/comments/:id", app.deleteCommentHandler)
-
-	router.HandlerFunc(http.MethodGet, "/v1/events", app.handleServerEvents)
+	router.HandlerFunc(http.MethodGet, "/v1/subscribe/comments", app.handleSubscribeToComments)
 
 	return app.recoverPanic(app.enableCORS(app.rateLimit(router)))
 }

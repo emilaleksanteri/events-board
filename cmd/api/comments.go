@@ -160,3 +160,15 @@ func (app *application) deleteCommentHandler(w http.ResponseWriter, r *http.Requ
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) handleSubscribeToComments(w http.ResponseWriter, r *http.Request) {
+	err := app.handleServerEvents(w, r, COMMENT_ADDED)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrSseNotSupported):
+			app.sSENotSupportedResponse(w, r, err)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+	}
+}

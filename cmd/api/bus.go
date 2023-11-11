@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/data"
+	"github.com/google/uuid"
 )
 
 const (
@@ -18,12 +19,7 @@ const (
 	COMMENT_ADDED = "comment-added"
 )
 
-type EventPayload struct {
-	Channel      string   `json:"channel"`
-	Payload      string   `json:"payload"`
-	Pattern      string   `json:"pattern"`
-	PayloadSlice []string `json:"payloadSlice"`
-}
+var ErrSseNotSupported = errors.New("Server Sent Events not supported by subscriber")
 
 type EventData struct {
 	ID    string `json:"id"`
@@ -65,8 +61,7 @@ func (app *application) publishPostCommentEvent(comment *data.Comment, ctx conte
 }
 
 func (ed *EventData) String() string {
-	ed.ID = fmt.Sprintf("%v", rand.Intn(100_000_000))
-
+	ed.ID = uuid.New().String()
 	sb := strings.Builder{}
 
 	sb.WriteString(fmt.Sprintf("id: %s\n", ed.ID))
@@ -96,12 +91,12 @@ func ping(w io.Writer) error {
 	return nil
 }
 
-func (app *application) handleServerEvents(w http.ResponseWriter, r *http.Request) {
+func (app *application) handleServerEvents(
+	w http.ResponseWriter, r *http.Request, channel string) error {
+
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		fmt.Println("SSE not supported buddy")
-		http.Error(w, "SSE not supported buddy", http.StatusInternalServerError)
-		return
+		return ErrSseNotSupported
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -112,8 +107,7 @@ func (app *application) handleServerEvents(w http.ResponseWriter, r *http.Reques
 
 	err := ping(w)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
-		return
+		return err
 	}
 
 	flusher.Flush()
@@ -121,18 +115,20 @@ func (app *application) handleServerEvents(w http.ResponseWriter, r *http.Reques
 	for {
 		select {
 		case <-r.Context().Done():
-			return
+			return nil
 		case msg := <-app.eventChan:
-			event := EventData{"", msg.Channel, msg.Payload, 1000}
+			if msg.Channel == channel {
+				event := EventData{"", msg.Channel, msg.Payload, 1000}
 
-			event.Write(w)
-			flusher.Flush()
+				event.Write(w)
+				flusher.Flush()
+			}
 
 		case <-time.After(time.Second * 30):
 			err := ping(w)
 			if err != nil {
 				app.serverErrorResponse(w, r, err)
-				return
+				return err
 			}
 
 			flusher.Flush()
