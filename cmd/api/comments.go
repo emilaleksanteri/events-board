@@ -41,6 +41,12 @@ func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Requ
 	err = app.writeJSON(w, http.StatusCreated, envelope{"comment": comment}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.publishPostCommentEvent(comment)
+	if err != nil {
+		app.logger.Error(err.Error())
 	}
 }
 
@@ -84,8 +90,13 @@ func (app *application) createSubCommentHandler(w http.ResponseWriter, r *http.R
 	err = app.writeJSON(w, http.StatusCreated, envelope{"comment": comment}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+		return
 	}
 
+	err = app.publishPostCommentEvent(comment)
+	if err != nil {
+		app.logger.Error(err.Error())
+	}
 }
 
 func (app *application) getCommentHandler(w http.ResponseWriter, r *http.Request) {

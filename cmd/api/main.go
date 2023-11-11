@@ -96,6 +96,7 @@ func main() {
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
+		redis:  redisClient,
 	}
 
 	err = app.serve()
@@ -110,8 +111,7 @@ func createRedisClient(cfg config) (*redis.Client, error) {
 		Addr: cfg.redis.redisAddr,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
