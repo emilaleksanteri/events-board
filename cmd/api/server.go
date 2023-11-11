@@ -31,6 +31,7 @@ func (app *application) serve() error {
 		s := <-quit
 
 		app.logger.Info("caught signal!", "signal", s.String())
+
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 

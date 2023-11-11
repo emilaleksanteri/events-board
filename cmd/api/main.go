@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"fmt"
 	"github.com/emilaleksanteri/pubsub/internal/data"
 	_ "github.com/lib/pq"
 	redis "github.com/redis/go-redis/v9"
@@ -44,11 +45,12 @@ type config struct {
 }
 
 type application struct {
-	config config
-	logger *slog.Logger
-	wg     sync.WaitGroup
-	models data.Models
-	redis  *redis.Client
+	config    config
+	logger    *slog.Logger
+	wg        sync.WaitGroup
+	models    data.Models
+	redis     *redis.Client
+	eventChan chan *redis.Message
 }
 
 func main() {
@@ -62,7 +64,7 @@ func main() {
 	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "Postgres max connection idle time")
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst size")
-	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", false, "Enable rate limiter")
 	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		cfg.cors.trustedOrigins = strings.Fields(val)
 		return nil
@@ -93,11 +95,37 @@ func main() {
 	logger.Info("redis connection pool established")
 
 	app := application{
-		config: cfg,
-		logger: logger,
-		models: data.NewModels(db),
-		redis:  redisClient,
+		config:    cfg,
+		logger:    logger,
+		models:    data.NewModels(db),
+		redis:     redisClient,
+		eventChan: make(chan *redis.Message),
 	}
+
+	sub := app.redis.Subscribe(context.Background(), POST_ADDED, COMMENT_ADDED)
+	iface, err := sub.Receive(context.Background())
+	if err != nil {
+		os.Exit(1)
+		return
+	}
+
+	switch iface.(type) {
+	case *redis.Subscription:
+		fmt.Println("subscribed to channel")
+	case *redis.Message:
+		fmt.Println("message received")
+	case *redis.Pong:
+		fmt.Println("pong received")
+	default:
+		os.Exit(1)
+	}
+
+	go func() {
+		channel := sub.Channel()
+		for msg := range channel {
+			app.eventChan <- msg
+		}
+	}()
 
 	err = app.serve()
 	if err != nil {
@@ -108,10 +136,13 @@ func main() {
 
 func createRedisClient(cfg config) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
-		Addr: cfg.redis.redisAddr,
+		Addr:     cfg.redis.redisAddr,
+		Password: "",
+		DB:       0,
 	})
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {

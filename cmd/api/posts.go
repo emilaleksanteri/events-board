@@ -46,7 +46,7 @@ func (app *application) cratePostHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = app.publishPostPostEvent(post)
+	err = app.publishPostPostEvent(post, r.Context())
 	if err != nil {
 		app.logger.Info("failed to publish post event", "error", err)
 	}

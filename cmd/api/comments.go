@@ -44,7 +44,7 @@ func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	err = app.publishPostCommentEvent(comment)
+	err = app.publishPostCommentEvent(comment, r.Context())
 	if err != nil {
 		app.logger.Error(err.Error())
 	}
@@ -93,7 +93,7 @@ func (app *application) createSubCommentHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.publishPostCommentEvent(comment)
+	err = app.publishPostCommentEvent(comment, r.Context())
 	if err != nil {
 		app.logger.Error(err.Error())
 	}
