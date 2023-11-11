@@ -87,7 +87,7 @@ func (ed *EventData) Write(w io.Writer) (int64, error) {
 }
 
 func ping(w io.Writer) error {
-	payload := EventData{"", "ping", "ping", 1000}
+	payload := EventData{"", "ping", "", 1000}
 	_, err := payload.Write(w)
 	if err != nil {
 		return err
