@@ -97,6 +97,11 @@ func (app *application) createSubCommentHandler(w http.ResponseWriter, r *http.R
 	if err != nil {
 		app.logger.Error(err.Error())
 	}
+
+	err = app.publishPostSubCommentEvent(comment, r.Context())
+	if err != nil {
+		app.logger.Error(err.Error())
+	}
 }
 
 func (app *application) getCommentHandler(w http.ResponseWriter, r *http.Request) {

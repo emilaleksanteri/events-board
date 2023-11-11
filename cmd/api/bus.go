@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	POST_ADDED    = "post-added"
-	COMMENT_ADDED = "comment-added"
+	POST_ADDED        = "post-added"
+	COMMENT_ADDED     = "comment-added"
+	SUB_COMMENT_ADDED = "sub-comment-added"
 )
 
 var ErrSseNotSupported = errors.New("Server Sent Events not supported by subscriber")
@@ -51,6 +52,22 @@ func (app *application) publishPostCommentEvent(comment *data.Comment, ctx conte
 	}
 
 	call := app.redis.Publish(ctx, COMMENT_ADDED, payload)
+
+	_, err = call.Result()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (app *application) publishPostSubCommentEvent(subComment *data.Comment, ctx context.Context) error {
+	payload, err := json.Marshal(subComment)
+	if err != nil {
+		return err
+	}
+
+	call := app.redis.Publish(ctx, SUB_COMMENT_ADDED, payload)
 
 	_, err = call.Result()
 	if err != nil {

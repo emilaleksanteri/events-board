@@ -102,7 +102,7 @@ func main() {
 		eventChan: make(chan *redis.Message),
 	}
 
-	subscribeTo := []string{POST_ADDED, COMMENT_ADDED}
+	subscribeTo := []string{POST_ADDED, COMMENT_ADDED, SUB_COMMENT_ADDED}
 	sub := app.redis.Subscribe(context.Background(), subscribeTo...)
 	iface, err := sub.Receive(context.Background())
 	if err != nil {
