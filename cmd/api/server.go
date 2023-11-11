@@ -35,6 +35,11 @@ func (app *application) serve() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
+		redisStatus := app.redis.Shutdown(ctx)
+		if redisStatus.Err() != nil {
+			shutdownError <- redisStatus.Err()
+		}
+
 		err := srv.Shutdown(ctx)
 		if err != nil {
 			shutdownError <- err
