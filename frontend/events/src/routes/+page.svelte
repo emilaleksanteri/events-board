@@ -2,14 +2,10 @@
 	let name = 'world';
 	import { writable } from 'svelte/store';
 
-	const messages = writable([]);
+	const messages = writable<Array<{ body: string; id: number }>>([]);
 	const evtSource = new EventSource('http://localhost:4000/v1/events');
 	evtSource.onerror = function (err) {
 		console.log(err);
-	};
-
-	evtSource.onmessage = function (event) {
-		console.log(event);
 	};
 
 	evtSource.onopen = function (event) {
@@ -17,11 +13,9 @@
 	};
 
 	evtSource.addEventListener('post-added', function (event) {
-		console.log(event);
-	});
-
-	evtSource.addEventListener('ping', function (event) {
-		console.log(event);
+		const data: { body: string; id: number } = JSON.parse(event.data);
+		console.log('data: ', data);
+		messages.set($messages.concat(data));
 	});
 </script>
 
@@ -36,8 +30,8 @@
 	>
 </details>
 
-{#each $messages as m}
+{#each $messages as m (m.id)}
 	<p>
-		{m.msg} - {m.now}
+		{m.body}
 	</p>
 {/each}

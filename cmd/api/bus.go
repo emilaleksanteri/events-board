@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/data"
 )
@@ -63,6 +65,8 @@ func (app *application) publishPostCommentEvent(comment *data.Comment, ctx conte
 }
 
 func (ed *EventData) String() string {
+	ed.ID = fmt.Sprintf("%v", rand.Intn(100_000_000))
+
 	sb := strings.Builder{}
 
 	sb.WriteString(fmt.Sprintf("id: %s\n", ed.ID))
@@ -82,6 +86,16 @@ func (ed *EventData) Write(w io.Writer) (int64, error) {
 	return int64(num), nil
 }
 
+func ping(w io.Writer) error {
+	payload := EventData{"", "ping", "ping", 1000}
+	_, err := payload.Write(w)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (app *application) handleServerEvents(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -90,16 +104,18 @@ func (app *application) handleServerEvents(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	id := 1
-
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Transfer-Encoding", "chunked")
 
-	eventPing := EventData{fmt.Sprintf("%v", id), "ping", "hello", 3000}
-	w.Write([]byte(eventPing.String()))
+	err := ping(w)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	flusher.Flush()
 
 	for {
@@ -107,9 +123,18 @@ func (app *application) handleServerEvents(w http.ResponseWriter, r *http.Reques
 		case <-r.Context().Done():
 			return
 		case msg := <-app.eventChan:
-			id++
-			event := EventData{fmt.Sprintf("%v", id), msg.Channel, msg.Payload, 3000}
-			w.Write([]byte(event.String()))
+			event := EventData{"", msg.Channel, msg.Payload, 1000}
+
+			event.Write(w)
+			flusher.Flush()
+
+		case <-time.After(time.Second * 30):
+			err := ping(w)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
+			}
+
 			flusher.Flush()
 		}
 	}
