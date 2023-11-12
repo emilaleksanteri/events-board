@@ -10,10 +10,29 @@ import (
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
+	"time"
 )
 
+type UserSession struct {
+	RawData           map[string]interface{}
+	Provider          string
+	Email             string
+	Name              string
+	FirstName         string
+	LastName          string
+	NickName          string
+	Description       string
+	UserID            string
+	AvatarURL         string
+	Location          string
+	AccessToken       string
+	AccessTokenSecret string
+	RefreshToken      string
+	ExpiresAt         time.Time
+	IDToken           string
+}
+
 func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("handleAuthCallback")
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
@@ -27,14 +46,12 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 
 func (app *application) handleSignOut(w http.ResponseWriter, r *http.Request) {
 	gothic.Logout(w, r)
-	w.Header().Set("Location", "/")
+	w.Header().Set("Location", "/signin")
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("handleSignInWithProvider")
 	if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
-		fmt.Println(gothUser)
 		t, _ := template.New("foo").Parse(userTemplate)
 		t.Execute(w, gothUser)
 	} else {
@@ -72,7 +89,7 @@ var indexTemplate = `
     <p><a href="/auth?provider=google">Log in with Google</a></p>`
 
 var userTemplate = `
-<p><a href="/logout/{{.Provider}}">logout</a></p>
+<p><a href="/signout?provider={{.Provider}}">logout</a></p>
 <p>Name: {{.Name}} [{{.LastName}}, {{.FirstName}}]</p>
 <p>Email: {{.Email}}</p>
 <p>NickName: {{.NickName}}</p>
