@@ -26,5 +26,10 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodDelete, "/v1/comments/:id", app.deleteCommentHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/subscribe/comments", app.handleSubscribeToComments)
 
+	router.HandlerFunc(http.MethodGet, "/signin", app.handleTempAuthTest)
+	router.HandlerFunc(http.MethodGet, "/auth", app.handleSignInWithProvider)
+	router.HandlerFunc(http.MethodGet, "/auth/callback", app.handleAuthCallback)
+	router.HandlerFunc(http.MethodGet, "/signout", app.handleSignOut)
+
 	return app.recoverPanic(app.enableCORS(app.rateLimit(router)))
 }

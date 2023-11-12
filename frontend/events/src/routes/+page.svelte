@@ -3,7 +3,7 @@
 	import { writable } from 'svelte/store';
 
 	const messages = writable<Array<{ body: string; id: number }>>([]);
-	const evtSource = new EventSource('http://localhost:4000/v1/events');
+	const evtSource = new EventSource('http://localhost:4000/v1/subscribe/posts');
 	evtSource.onerror = function (err) {
 		console.log(err);
 	};
