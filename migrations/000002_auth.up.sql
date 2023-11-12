@@ -6,7 +6,8 @@ create table if not exists users(
     created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
     email citext unique not null,
     name text,
-    username text unique not null
+    username text not null,
+    profile_picture text not null
 );
 
 create table if not exists providers(

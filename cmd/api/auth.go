@@ -6,40 +6,74 @@ import (
 	"net/http"
 	"os"
 
+	"errors"
+
+	"math/rand"
+
+	"github.com/emilaleksanteri/pubsub/internal/data"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
-	"time"
 )
 
-type UserSession struct {
-	RawData           map[string]interface{}
-	Provider          string
-	Email             string
-	Name              string
-	FirstName         string
-	LastName          string
-	NickName          string
-	Description       string
-	UserID            string
-	AvatarURL         string
-	Location          string
-	AccessToken       string
-	AccessTokenSecret string
-	RefreshToken      string
-	ExpiresAt         time.Time
-	IDToken           string
+const (
+	CSRF_TOKEN    = "__Secure-events_csrf_token"
+	SESSION_TOKEN = "__Secure-events_session_token"
+)
+
+// cration fetch user data from provider via goth
+// crate user profile
+// save provider sent details
+// create a pair of session keys
+
+func randomUserAdjectiveThing() string {
+	possibleOnes := []string{
+		"beloved",
+		"adored",
+		"cherished",
+		"treasured",
+		"prized",
+		"favorite",
+		"precious",
+		"favorite",
+		"coolest",
+		"best",
+	}
+	return possibleOnes[rand.Intn(len(possibleOnes))]
 }
 
 func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
+	cookies := r.Cookies()
+	fmt.Println(cookies)
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
 
-	fmt.Println(user)
+	userInDb, err := app.models.Users.GetByEmail(user.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrUserNotFound):
+			userInDb = &data.User{
+				Email:          user.Email,
+				Name:           user.Name,
+				ProfilePicture: user.AvatarURL,
+				Username:       fmt.Sprintf("%s-user", randomUserAdjectiveThing()),
+			}
+
+			err = app.models.Users.Insert(userInDb)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
+			}
+		default:
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+	}
+
 	t, _ := template.New("foo").Parse(userTemplate)
 	t.Execute(w, user)
 }
