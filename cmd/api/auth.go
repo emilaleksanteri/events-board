@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/auth"
 	"github.com/emilaleksanteri/pubsub/internal/data"
@@ -17,8 +18,8 @@ import (
 )
 
 const (
-	CSRF_TOKEN    = "__Secure-events_csrf_token"
-	SESSION_TOKEN = "__Secure-events_session_token"
+	CSRF_COOKIE    = "__Secure-events_csrf_token"
+	SESSION_COOKIE = "__Secure-events_session_token"
 )
 
 // cration fetch user data from provider via goth
@@ -103,11 +104,39 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	// abstract gen token funcs to util in auth
-	// make csrf w gen token + sesh tok
-	// make mac of csrf
+	csrf := auth.MakeToken(fmt.Sprintf(("%s%s"), sessionToken, os.Getenv("SESSION_SECRET")))
 
-	// turn both to cookies and send down ye
+	expiry := time.Now().AddDate(0, 1, 0)
+	sessionCookie := http.Cookie{
+		Name:       SESSION_COOKIE,
+		Value:      sessionToken,
+		Path:       "/",
+		Expires:    expiry,
+		RawExpires: expiry.Format(time.UnixDate),
+		MaxAge:     86400 * 30,
+		Secure:     true,
+		HttpOnly:   true,
+		SameSite:   3,
+		Raw:        fmt.Sprintf("%s=%s", SESSION_COOKIE, sessionToken),
+		Unparsed:   []string{fmt.Sprintf("%s=%s", SESSION_COOKIE, sessionToken)},
+	}
+
+	csrfCookie := http.Cookie{
+		Name:       CSRF_COOKIE,
+		Value:      csrf,
+		Path:       "/",
+		Expires:    expiry,
+		RawExpires: expiry.Format(time.UnixDate),
+		MaxAge:     86400 * 30,
+		Secure:     true,
+		HttpOnly:   true,
+		SameSite:   3,
+		Raw:        fmt.Sprintf("%s=%s", CSRF_COOKIE, csrf),
+		Unparsed:   []string{fmt.Sprintf("%s=%s", CSRF_COOKIE, csrf)},
+	}
+
+	http.SetCookie(w, &sessionCookie)
+	http.SetCookie(w, &csrfCookie)
 
 	t, _ := template.New("foo").Parse(userTemplate)
 	t.Execute(w, user)

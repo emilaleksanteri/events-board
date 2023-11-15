@@ -2,10 +2,9 @@ package data
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"errors"
+	"github.com/emilaleksanteri/pubsub/internal/auth"
 	"time"
 )
 
@@ -25,21 +24,6 @@ var (
 	ErrSessionNotFound = errors.New("session not found")
 )
 
-func generateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-func generateRandomString(s int) (string, error) {
-	b, err := generateRandomBytes(s)
-	return base64.URLEncoding.EncodeToString(b), err
-}
-
 func (sm *SessionModel) Insert(userId int64) (string, error) {
 	query := `
 	INSERT INTO sessions (token, user_id, expires_at)
@@ -49,7 +33,7 @@ func (sm *SessionModel) Insert(userId int64) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	token, err := generateRandomString(128)
+	token, err := auth.GenerateToken(128)
 	if err != nil {
 		return "", err
 	}
