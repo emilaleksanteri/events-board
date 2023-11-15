@@ -17,7 +17,7 @@ func CheckMac(token, mac string) bool {
 	return hmac.Equal([]byte(mac), []byte(makeMac(token, key)))
 }
 
-func MakeToken(sessionToken string) string {
+func MakeToken(tokenToHash string) string {
 	secret := os.Getenv("SESSION_SECRET")
-	return makeMac(sessionToken, []byte(secret))
+	return makeMac(tokenToHash, []byte(secret))
 }

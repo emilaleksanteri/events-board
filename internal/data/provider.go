@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -35,6 +36,10 @@ type sqlProvider struct {
 type ProviderModel struct {
 	DB *sql.DB
 }
+
+var (
+	ErrProviderNotFound = errors.New("provider not found")
+)
 
 func validateSqlProvider(p *sqlProvider) *Provider {
 	return &Provider{
@@ -72,7 +77,7 @@ func (pm *ProviderModel) Insert(p *Provider) error {
 	return pm.DB.QueryRowContext(ctx, query, args...).Scan(&p.Id)
 }
 
-func (pm *ProviderModel) GetByUser(userId string) (*Provider, error) {
+func (pm *ProviderModel) GetByUser(userId int64) (*Provider, error) {
 	query := `
 	SELECT id, provider, access_token, refresh_token, expires_at, user_id, id_token, access_token_secret
 	FROM providers
@@ -98,7 +103,7 @@ func (pm *ProviderModel) GetByUser(userId string) (*Provider, error) {
 	if err != nil {
 		switch {
 		case err == sql.ErrNoRows:
-			return nil, ErrRecordNotFound
+			return nil, ErrProviderNotFound
 		default:
 			return nil, err
 		}

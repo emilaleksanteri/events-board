@@ -1,15 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
+	"math/rand"
 	"net/http"
 	"os"
 
-	"errors"
-
-	"math/rand"
-
+	"github.com/emilaleksanteri/pubsub/internal/auth"
 	"github.com/emilaleksanteri/pubsub/internal/data"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
@@ -44,8 +43,6 @@ func randomUserAdjectiveThing() string {
 }
 
 func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
-	cookies := r.Cookies()
-	fmt.Println(cookies)
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
@@ -74,6 +71,44 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	_, err = app.models.Providers.GetByUser(userInDb.Id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrProviderNotFound):
+			providerUser := &data.Provider{UserId: userInDb.Id}
+			err = app.models.Providers.Insert(providerUser)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
+			}
+		default:
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+	}
+
+	sessionToken, err := app.models.Sessions.GetByUserId(userInDb.Id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrSessionNotFound):
+			sessionToken, err = app.models.Sessions.Insert(userInDb.Id)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
+			}
+
+		default:
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+	}
+
+	// abstract gen token funcs to util in auth
+	// make csrf w gen token + sesh tok
+	// make mac of csrf
+
+	// turn both to cookies and send down ye
+
 	t, _ := template.New("foo").Parse(userTemplate)
 	t.Execute(w, user)
 }
@@ -99,14 +134,15 @@ func (app *application) handleTempAuthTest(w http.ResponseWriter, r *http.Reques
 }
 
 const (
-	// TODO: replace this
 	key    = "randomString"
 	MaxAge = 86400 * 30
 	IsProd = false
 )
 
+var Key = os.Getenv("SESSION_SECRET")
+
 func (app *application) initAuth() {
-	store := sessions.NewCookieStore([]byte(key))
+	store := sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
 	store.MaxAge(MaxAge)
 	store.Options.Path = "/"
 	store.Options.HttpOnly = true

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
@@ -93,8 +92,6 @@ func (um *UserModel) GetByEmail(email string) (*User, error) {
 			return nil, err
 		}
 	}
-
-	fmt.Println(tempUser)
 
 	return parseValidUser(&tempUser), nil
 }

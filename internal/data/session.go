@@ -40,7 +40,7 @@ func generateRandomString(s int) (string, error) {
 	return base64.URLEncoding.EncodeToString(b), err
 }
 
-func (sm *SessionModel) Insert(userId int) (string, error) {
+func (sm *SessionModel) Insert(userId int64) (string, error) {
 	query := `
 	INSERT INTO sessions (token, user_id, expires_at)
 	VALUES ($1, $2, $3)
@@ -64,7 +64,7 @@ func (sm *SessionModel) Insert(userId int) (string, error) {
 	return token, nil
 }
 
-func (sm *SessionModel) GetByUserId(userId string) (*Session, error) {
+func (sm *SessionModel) GetByUserId(userId int64) (string, error) {
 	query := `
 	SELECT id, token, user_id, expires_at
 	FROM sessions
@@ -79,10 +79,10 @@ func (sm *SessionModel) GetByUserId(userId string) (*Session, error) {
 	if err != nil {
 		switch {
 		case err == sql.ErrNoRows:
-			return nil, ErrSessionNotFound
+			return "", ErrSessionNotFound
 		}
-		return nil, err
+		return "", err
 	}
 
-	return &s, nil
+	return s.Token, nil
 }
