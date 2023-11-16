@@ -22,11 +22,6 @@ const (
 	SESSION_COOKIE = "__Secure-events_session_token"
 )
 
-// cration fetch user data from provider via goth
-// crate user profile
-// save provider sent details
-// create a pair of session keys
-
 func randomUserAdjectiveThing() string {
 	possibleOnes := []string{
 		"beloved",
@@ -104,7 +99,12 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	csrf := auth.MakeToken(fmt.Sprintf(("%s%s"), sessionToken, os.Getenv("SESSION_SECRET")))
+	csrf := auth.MakeToken(
+		fmt.Sprintf("%s%s",
+			sessionToken,
+			os.Getenv("SESSION_SECRET"),
+		),
+	)
 
 	expiry := time.Now().AddDate(0, 1, 0)
 	sessionCookie := http.Cookie{

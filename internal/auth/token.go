@@ -2,7 +2,7 @@ package auth
 
 import (
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 )
 
 func generateRandomBytes(n int) ([]byte, error) {
@@ -15,7 +15,8 @@ func generateRandomBytes(n int) ([]byte, error) {
 	return b, nil
 }
 
+// returns a hex encoded random byte string, double the length of s
 func GenerateToken(s int) (string, error) {
 	b, err := generateRandomBytes(s)
-	return base64.URLEncoding.EncodeToString(b), err
+	return hex.EncodeToString(b), err
 }
