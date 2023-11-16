@@ -107,36 +107,9 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 	)
 
 	expiry := time.Now().AddDate(0, 1, 0)
-	sessionCookie := http.Cookie{
-		Name:       SESSION_COOKIE,
-		Value:      sessionToken,
-		Path:       "/",
-		Expires:    expiry,
-		RawExpires: expiry.Format(time.UnixDate),
-		MaxAge:     86400 * 30,
-		Secure:     true,
-		HttpOnly:   true,
-		SameSite:   3,
-		Raw:        fmt.Sprintf("%s=%s", SESSION_COOKIE, sessionToken),
-		Unparsed:   []string{fmt.Sprintf("%s=%s", SESSION_COOKIE, sessionToken)},
-	}
-
-	csrfCookie := http.Cookie{
-		Name:       CSRF_COOKIE,
-		Value:      csrf,
-		Path:       "/",
-		Expires:    expiry,
-		RawExpires: expiry.Format(time.UnixDate),
-		MaxAge:     86400 * 30,
-		Secure:     true,
-		HttpOnly:   true,
-		SameSite:   3,
-		Raw:        fmt.Sprintf("%s=%s", CSRF_COOKIE, csrf),
-		Unparsed:   []string{fmt.Sprintf("%s=%s", CSRF_COOKIE, csrf)},
-	}
-
-	http.SetCookie(w, &sessionCookie)
-	http.SetCookie(w, &csrfCookie)
+	maxAge := 86400 * 30
+	app.SetSecureCookie(w, SESSION_COOKIE, sessionToken, expiry, maxAge)
+	app.SetSecureCookie(w, CSRF_COOKIE, csrf, expiry, maxAge)
 
 	t, _ := template.New("foo").Parse(userTemplate)
 	t.Execute(w, user)
@@ -144,6 +117,9 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 
 func (app *application) handleSignOut(w http.ResponseWriter, r *http.Request) {
 	gothic.Logout(w, r)
+	app.DeleteSecureCookie(w, SESSION_COOKIE)
+	app.DeleteSecureCookie(w, CSRF_COOKIE)
+
 	w.Header().Set("Location", "/signin")
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }

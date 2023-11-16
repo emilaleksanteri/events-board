@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
 	"github.com/julienschmidt/httprouter"
@@ -126,4 +127,28 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 		return defaultValue
 	}
 	return i
+}
+
+func (app *application) SetSecureCookie(
+	w http.ResponseWriter, name, value string, expiry time.Time, maxAge int) {
+
+	cookie := http.Cookie{
+		Name:       name,
+		Value:      value,
+		Path:       "/",
+		Expires:    expiry,
+		RawExpires: expiry.Format(time.UnixDate),
+		MaxAge:     maxAge,
+		Secure:     true,
+		HttpOnly:   true,
+		SameSite:   3,
+		Raw:        fmt.Sprintf("%s=%s", name, value),
+		Unparsed:   []string{fmt.Sprintf("%s=%s", name, value)},
+	}
+
+	http.SetCookie(w, &cookie)
+}
+
+func (app *application) DeleteSecureCookie(w http.ResponseWriter, name string) {
+	app.SetSecureCookie(w, name, "", time.Now(), -1)
 }
