@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"fmt"
+
 	"github.com/emilaleksanteri/pubsub/internal/data"
+	"github.com/gorilla/sessions"
 	_ "github.com/lib/pq"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -45,12 +47,13 @@ type config struct {
 }
 
 type application struct {
-	config    config
-	logger    *slog.Logger
-	wg        sync.WaitGroup
-	models    data.Models
-	redis     *redis.Client
-	eventChan chan *redis.Message
+	config       config
+	logger       *slog.Logger
+	wg           sync.WaitGroup
+	models       data.Models
+	redis        *redis.Client
+	eventChan    chan *redis.Message
+	sessionStore *sessions.Store
 }
 
 func main() {
@@ -101,8 +104,7 @@ func main() {
 		redis:     redisClient,
 		eventChan: make(chan *redis.Message),
 	}
-
-	app.initAuth()
+	app.sessionStore = app.InitAuth()
 
 	subscribeTo := []string{POST_ADDED, COMMENT_ADDED, SUB_COMMENT_ADDED}
 	sub := app.redis.Subscribe(context.Background(), subscribeTo...)

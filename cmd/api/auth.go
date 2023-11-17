@@ -20,6 +20,7 @@ import (
 const (
 	CSRF_COOKIE    = "__Secure-events_csrf_token"
 	SESSION_COOKIE = "__Secure-events_session_token"
+	SESSION_NAME   = "pubsub-session"
 )
 
 func randomUserAdjectiveThing() string {
@@ -99,6 +100,12 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	newSesh := sessions.NewSession(*app.sessionStore, SESSION_NAME)
+	newSesh.Values["session_token"] = sessionToken
+	newSesh.Values["user_id"] = userInDb.Id
+	fmt.Println(newSesh.Values)
+	newSesh.Save(r, w)
+
 	csrf := auth.MakeToken(
 		fmt.Sprintf("%s%s",
 			sessionToken,
@@ -134,6 +141,18 @@ func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.
 }
 
 func (app *application) handleTempAuthTest(w http.ResponseWriter, r *http.Request) {
+	sesh := sessions.GetRegistry(r)
+	mySesh, err := sesh.Get(*app.sessionStore, SESSION_NAME)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	fmt.Println(mySesh.Values)
+
+	cookies := r.Cookies()
+	for _, cookie := range cookies {
+		fmt.Println(*cookie)
+	}
 	t, _ := template.New("foo").Parse(indexTemplate)
 	t.Execute(w, nil)
 }
@@ -146,7 +165,7 @@ const (
 
 var Key = os.Getenv("SESSION_SECRET")
 
-func (app *application) initAuth() {
+func (app *application) InitAuth() *sessions.Store {
 	store := sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
 	store.MaxAge(MaxAge)
 	store.Options.Path = "/"
@@ -154,10 +173,13 @@ func (app *application) initAuth() {
 	store.Options.Secure = IsProd
 
 	gothic.Store = store
+	sessionStore := gothic.Store
 
 	goth.UseProviders(
 		google.New(os.Getenv("PUBSUB_GOOGLE_CLIENT_ID"), os.Getenv("PUBSUB_GOOGLE_CLIENT_SECRET"), "http://localhost:4000/auth/callback?provider=google"),
 	)
+
+	return &sessionStore
 }
 
 var indexTemplate = `
