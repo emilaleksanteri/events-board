@@ -76,3 +76,28 @@ func (sm *SessionModel) GetByUserId(userId int64) (string, error) {
 
 	return s.Token, nil
 }
+
+func (sm *SessionModel) GetByToken(token string) (*Session, error) {
+	query := `
+	SELECT id, token, user_id, expires_at
+	FROM sessions
+	WHERE token = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var s Session
+	err := sm.DB.QueryRowContext(ctx, query, token).
+		Scan(&s.Id, &s.Token, &s.UserId, &s.ExpiresAt)
+
+	if err != nil {
+		switch {
+		case err == sql.ErrNoRows:
+			return nil, ErrSessionNotFound
+		}
+		return nil, err
+	}
+
+	return &s, nil
+}

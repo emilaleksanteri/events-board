@@ -53,7 +53,7 @@ type application struct {
 	models       data.Models
 	redis        *redis.Client
 	eventChan    chan *redis.Message
-	sessionStore *sessions.Store
+	sessionStore sessions.Store
 }
 
 func main() {
@@ -104,7 +104,7 @@ func main() {
 		redis:     redisClient,
 		eventChan: make(chan *redis.Message),
 	}
-	app.sessionStore = app.InitAuth()
+	app.sessionStore = app.initAuth()
 
 	subscribeTo := []string{POST_ADDED, COMMENT_ADDED, SUB_COMMENT_ADDED}
 	sub := app.redis.Subscribe(context.Background(), subscribeTo...)
