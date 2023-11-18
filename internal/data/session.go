@@ -13,6 +13,7 @@ import (
 
 var (
 	AnynomousUser = &CachedUser{}
+	SessionExpiry = 30 * 24 * time.Hour
 )
 
 // fetch session via session token, token should be 128 bits long
@@ -53,6 +54,7 @@ func (sm *SessionModel) Insert(userId int64) (string, error) {
 	query := `
 	INSERT INTO sessions (token, user_id, expires_at)
 	VALUES ($1, $2, $3)
+	RETURNING token
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -63,16 +65,18 @@ func (sm *SessionModel) Insert(userId int64) (string, error) {
 		return "", err
 	}
 
-	stringToken := fmt.Sprintf("%x", token)
-
-	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	stringToken := fmt.Sprintf("%s", token)
+	expiresAt := time.Now().Add(SessionExpiry)
 	args := []any{stringToken, userId, expiresAt}
-	err = sm.DB.QueryRowContext(ctx, query, args...).Scan()
+
+	var sesh Session
+
+	err = sm.DB.QueryRowContext(ctx, query, args...).Scan(&sesh.Token)
 	if err != nil {
 		return "", err
 	}
 
-	return stringToken, nil
+	return sesh.Token, nil
 }
 
 func (sm *SessionModel) GetByUserId(userId int64) (string, error) {
@@ -93,12 +97,13 @@ func (sm *SessionModel) GetByUserId(userId int64) (string, error) {
 		switch {
 		case err == sql.ErrNoRows:
 			return "", ErrSessionNotFound
+		default:
+			return "", err
 		}
-		return "", err
 	}
 
 	if s.ExpiresAt.Before(time.Now()) {
-		err = sm.Delete(s.Token)
+		err = sm.Delete(userId)
 		if err != nil {
 			return "", err
 		}
@@ -109,16 +114,16 @@ func (sm *SessionModel) GetByUserId(userId int64) (string, error) {
 	return s.Token, nil
 }
 
-func (sm *SessionModel) Delete(token string) error {
+func (sm *SessionModel) Delete(userId int64) error {
 	query := `
 	DELETE FROM sessions
-	WHERE token = $1
+	WHERE user_id = $1
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := sm.DB.ExecContext(ctx, query, token)
+	_, err := sm.DB.ExecContext(ctx, query, userId)
 	if err != nil {
 		return err
 	}

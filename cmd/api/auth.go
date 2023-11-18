@@ -20,7 +20,7 @@ import (
 const (
 	CSRF_COOKIE    = "__Secure-events_csrf_token"
 	SESSION_COOKIE = "__Secure-events_session_token"
-	MaxAge         = 86400 * 30
+	MaxAge         = 60 * 60 * 24 * 30
 	IsProd         = false
 )
 
@@ -88,8 +88,17 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrProviderNotFound):
-			providerUser := &data.Provider{UserId: userInDb.Id}
-			err = app.models.Providers.Insert(providerUser)
+			providerUser := data.Provider{
+				UserId:            userInDb.Id,
+				Provider:          user.Provider,
+				AccessToken:       user.AccessToken,
+				AccessTokenSecret: user.AccessTokenSecret,
+				ExpiresAt:         user.ExpiresAt,
+				IdToken:           user.IDToken,
+				RefreshToken:      user.RefreshToken,
+			}
+
+			err = app.models.Providers.Insert(&providerUser)
 			if err != nil {
 				app.serverErrorResponse(w, r, err)
 				return
