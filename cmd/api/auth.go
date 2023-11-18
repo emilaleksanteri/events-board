@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	CSRF_COOKIE    = "__Secure-events_csrf_token"
-	SESSION_COOKIE = "__Secure-events_session_token"
-	MaxAge         = 60 * 60 * 24 * 30
-	IsProd         = false
+	CSRF_COOKIE           = "__Secure-events_csrf_token"
+	SESSION_COOKIE        = "__Secure-events_session_token"
+	CLIENT_REDIRECT_COKIE = "__events_client_redirect"
+	MaxAge                = 60 * 60 * 24 * 30
+	IsProd                = false
 )
 
 var (
@@ -138,19 +139,20 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	csrf := auth.MakeToken(
-		fmt.Sprintf("%s%s",
-			sessionToken,
-			AuthKey,
-		),
-	)
-
+	csrf := auth.MakeToken(fmt.Sprintf("%s%s", sessionToken, AuthKey))
 	expiry := time.Now().AddDate(0, 1, 0)
+
+	redirectCookie := FindCookie(r, CLIENT_REDIRECT_COKIE)
+	if redirectCookie == nil {
+		app.noProvidedAuthRedirectUrl(w, r)
+		return
+	}
+
 	app.SetSecureCookie(w, SESSION_COOKIE, sessionToken, expiry, MaxAge)
 	app.SetSecureCookie(w, CSRF_COOKIE, csrf, expiry, MaxAge)
 
-	t, _ := template.New("foo").Parse(userTemplate)
-	t.Execute(w, user)
+	w.Header().Set("Location", redirectCookie.Value)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (app *application) handleSignOut(w http.ResponseWriter, r *http.Request) {
@@ -165,14 +167,20 @@ func (app *application) handleSignOut(w http.ResponseWriter, r *http.Request) {
 
 		app.DeleteSecureCookie(w, SESSION_COOKIE)
 		app.DeleteSecureCookie(w, CSRF_COOKIE)
-
-		w.Header().Set("Location", "/signin")
-		w.WriteHeader(http.StatusTemporaryRedirect)
 	}
+	w.Header().Set("Location", "/signin")
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.Request) {
 	sessionCookie := FindCookie(r, SESSION_COOKIE)
+
+	redirectCookie := FindCookie(r, CLIENT_REDIRECT_COKIE)
+	if redirectCookie == nil {
+		app.noProvidedAuthRedirectUrl(w, r)
+		return
+	}
+
 	if sessionCookie != nil {
 		var userRedis data.CachedUser
 		err := app.redis.Get(r.Context(), sessionCookie.Value).Scan(&userRedis)
@@ -186,14 +194,13 @@ func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.
 		}
 
 		if userRedis.UserId != 0 {
-			w.Header().Set("Location", "/signin")
+			w.Header().Set("Location", redirectCookie.Value)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 			return
 		}
-
-	} else {
-		gothic.BeginAuthHandler(w, r)
 	}
+
+	gothic.BeginAuthHandler(w, r)
 }
 
 func (app *application) getUserSession(w http.ResponseWriter, r *http.Request) {
@@ -204,14 +211,25 @@ func (app *application) getUserSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(user.Username)
-
 	t, _ := template.New("foo").Parse(authTemplate)
 	t.Execute(w, user)
 
 }
 
 func (app *application) handleTempAuthTest(w http.ResponseWriter, r *http.Request) {
+	redirectUrl := r.URL.Query().Get("redirect")
+	if redirectUrl == "" {
+		app.noProvidedAuthRedirectUrl(w, r)
+		return
+	}
+
+	app.SetSecureCookie(
+		w,
+		CLIENT_REDIRECT_COKIE,
+		redirectUrl,
+		time.Now().Add(10*time.Minute),
+		MaxAge,
+	)
 
 	t, _ := template.New("foo").Parse(indexTemplate)
 	t.Execute(w, nil)

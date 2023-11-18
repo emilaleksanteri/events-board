@@ -83,3 +83,8 @@ func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Requ
 	message := "your user account does not have the necessary premissions to access this resource"
 	app.errorResponse(w, r, http.StatusForbidden, message)
 }
+
+func (app *application) noProvidedAuthRedirectUrl(w http.ResponseWriter, r *http.Request) {
+	message := "no redirect param provided on auth initialization"
+	app.errorResponse(w, r, http.StatusBadRequest, message)
+}
