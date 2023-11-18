@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
-	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -22,44 +20,37 @@ import (
 const (
 	CSRF_COOKIE    = "__Secure-events_csrf_token"
 	SESSION_COOKIE = "__Secure-events_session_token"
+	MaxAge         = 86400 * 30
+	IsProd         = false
 )
 
-func randomUserAdjectiveThing() string {
-	possibleOnes := []string{
-		"beloved",
-		"adored",
-		"cherished",
-		"treasured",
-		"prized",
-		"favorite",
-		"precious",
-		"favorite",
-		"coolest",
-		"best",
-	}
-	return possibleOnes[rand.Intn(len(possibleOnes))]
-}
+var (
+	AuthKey = os.Getenv("SESSION_SECRET")
+	Enckey  string
+)
 
-type CachedUser struct {
-	UserId int64 `json:"user_id"`
-}
-
-func (cu CachedUser) MarshalBinary() ([]byte, error) {
-	return json.Marshal(cu)
-}
-
-func (cu *CachedUser) UnmarshalBinary(data []byte) error {
-	return json.Unmarshal(data, &cu)
-}
-
-func FindCookie(r *http.Request, cookieName string) *http.Cookie {
-	for _, cookie := range r.Cookies() {
-		if cookie.Name == cookieName {
-			return cookie
-		}
+func (app *application) initAuth() sessions.Store {
+	Enckey, err := auth.GenerateToken(16)
+	if err != nil {
+		app.logger.Error(err.Error())
+		os.Exit(1)
 	}
 
-	return nil
+	store := sessions.NewCookieStore([]byte(AuthKey), []byte(Enckey))
+	store.MaxAge(MaxAge)
+	store.Options.Path = "/"
+	store.Options.MaxAge = MaxAge
+	store.Options.HttpOnly = true
+	store.Options.Secure = IsProd
+
+	gothic.Store = store
+	sessionStore := gothic.Store
+
+	goth.UseProviders(
+		google.New(os.Getenv("PUBSUB_GOOGLE_CLIENT_ID"), os.Getenv("PUBSUB_GOOGLE_CLIENT_SECRET"), "http://localhost:4000/auth/callback?provider=google"),
+	)
+
+	return sessionStore
 }
 
 func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +59,7 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 		app.serverErrorResponse(w, r, err)
 		return
 	}
+
 	userInDb, err := app.models.Users.GetByEmail(user.Email)
 	if err != nil {
 		switch {
@@ -76,7 +68,9 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 				Email:          user.Email,
 				Name:           user.Name,
 				ProfilePicture: user.AvatarURL,
-				Username:       fmt.Sprintf("%s-user", randomUserAdjectiveThing()),
+				Username: fmt.Sprintf("%s-user",
+					data.RandomUserAdjectiveThing(),
+				),
 			}
 
 			err = app.models.Users.Insert(userInDb)
@@ -122,7 +116,12 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	userRedis := CachedUser{UserId: userInDb.Id}
+	userRedis := data.CachedUser{
+		UserId:         userInDb.Id,
+		Username:       userInDb.Username,
+		ProfilePicture: userInDb.ProfilePicture,
+	}
+
 	err = app.redis.Set(r.Context(), sessionToken, userRedis, 30*24*time.Hour).Err()
 
 	if err != nil {
@@ -133,7 +132,7 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 	csrf := auth.MakeToken(
 		fmt.Sprintf("%s%s",
 			sessionToken,
-			os.Getenv("SESSION_SECRET"),
+			AuthKey,
 		),
 	)
 
@@ -147,17 +146,26 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 
 func (app *application) handleSignOut(w http.ResponseWriter, r *http.Request) {
 	gothic.Logout(w, r)
-	app.DeleteSecureCookie(w, SESSION_COOKIE)
-	app.DeleteSecureCookie(w, CSRF_COOKIE)
+	sessionCookie := FindCookie(r, SESSION_COOKIE)
+	if sessionCookie != nil {
+		err := app.redis.Del(r.Context(), sessionCookie.Value).Err()
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
 
-	w.Header().Set("Location", "/signin")
-	w.WriteHeader(http.StatusTemporaryRedirect)
+		app.DeleteSecureCookie(w, SESSION_COOKIE)
+		app.DeleteSecureCookie(w, CSRF_COOKIE)
+
+		w.Header().Set("Location", "/signin")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}
 }
 
 func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.Request) {
 	sessionCookie := FindCookie(r, SESSION_COOKIE)
 	if sessionCookie != nil {
-		var userRedis CachedUser
+		var userRedis data.CachedUser
 		err := app.redis.Get(r.Context(), sessionCookie.Value).Scan(&userRedis)
 		if err != nil {
 			switch {
@@ -174,11 +182,6 @@ func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.
 			return
 		}
 
-	}
-
-	if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
-		t, _ := template.New("foo").Parse(userTemplate)
-		t.Execute(w, gothUser)
 	} else {
 		gothic.BeginAuthHandler(w, r)
 	}
@@ -188,38 +191,6 @@ func (app *application) handleTempAuthTest(w http.ResponseWriter, r *http.Reques
 
 	t, _ := template.New("foo").Parse(indexTemplate)
 	t.Execute(w, nil)
-}
-
-const (
-	MaxAge = 86400 * 30
-	IsProd = false
-)
-
-var AuthKey = os.Getenv("SESSION_SECRET")
-var Enckey string
-
-func (app *application) initAuth() sessions.Store {
-	Enckey, err := auth.GenerateToken(16)
-	if err != nil {
-		app.logger.Error(err.Error())
-		os.Exit(1)
-	}
-
-	store := sessions.NewCookieStore([]byte(AuthKey), []byte(Enckey))
-	store.MaxAge(MaxAge)
-	store.Options.Path = "/"
-	store.Options.MaxAge = MaxAge
-	store.Options.HttpOnly = true
-	store.Options.Secure = IsProd
-
-	gothic.Store = store
-	sessionStore := gothic.Store
-
-	goth.UseProviders(
-		google.New(os.Getenv("PUBSUB_GOOGLE_CLIENT_ID"), os.Getenv("PUBSUB_GOOGLE_CLIENT_SECRET"), "http://localhost:4000/auth/callback?provider=google"),
-	)
-
-	return sessionStore
 }
 
 var indexTemplate = `

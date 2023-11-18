@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math/rand"
 	"time"
 
 	"github.com/emilaleksanteri/pubsub/internal/validator"
@@ -104,6 +105,22 @@ func parseValidUser(user *sqlUser) *User {
 		ProfilePicture: user.ProfilePicture.String,
 		Username:       user.Username.String,
 	}
+}
+
+func RandomUserAdjectiveThing() string {
+	possibleOnes := []string{
+		"beloved",
+		"adored",
+		"cherished",
+		"treasured",
+		"prized",
+		"favorite",
+		"precious",
+		"favorite",
+		"coolest",
+		"best",
+	}
+	return possibleOnes[rand.Intn(len(possibleOnes))]
 }
 
 func ValidateUser(v *validator.Validator, user *User) {

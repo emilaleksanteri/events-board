@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -16,6 +17,20 @@ type Session struct {
 	Token     string    `json:"token"`
 	UserId    int64     `json:"user_id"`
 	ExpiresAt time.Time `json:"expires"`
+}
+
+type CachedUser struct {
+	UserId         int64  `json:"user_id"`
+	Username       string `json:"username"`
+	ProfilePicture string `json:"profile_picture"`
+}
+
+func (cu CachedUser) MarshalBinary() ([]byte, error) {
+	return json.Marshal(cu)
+}
+
+func (cu *CachedUser) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, &cu)
 }
 
 type SessionModel struct {
