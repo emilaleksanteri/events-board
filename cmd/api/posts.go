@@ -32,7 +32,7 @@ func (app *application) cratePostHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := app.models.Posts.Insert(post)
+	err := app.models.Posts.Insert(post, 2)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

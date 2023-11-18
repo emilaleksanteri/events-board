@@ -19,6 +19,7 @@ type Post struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Comments  []Comment `json:"comments"`
+	User      *User     `json:"user"`
 }
 
 type PostMetadata struct {
@@ -32,17 +33,17 @@ type PostData struct {
 	Metadata *PostMetadata `json:"metadata"`
 }
 
-func (p PostModel) Insert(post *Post) error {
+func (p PostModel) Insert(post *Post, userId int64) error {
 	query := `
-	INSERT INTO posts (body)
-	VALUES ($1)
+	INSERT INTO posts (body, user_id)
+	VALUES ($1, $2)
 	RETURNING id, created_at, updated_at
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return p.DB.QueryRowContext(ctx, query, post.Body).
+	return p.DB.QueryRowContext(ctx, query, post.Body, userId).
 		Scan(&post.Id, &post.CreatedAt, &post.UpdatedAt)
 }
 
@@ -50,10 +51,14 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 	query := `
 	SELECT post.id, post.body, post.created_at, post.updated_at, 
 	COUNT(comment.id) AS comments_count, 
-	MAX(comment.created_at) AS last_comment_at, MAX(comment.body) as last_comment_body
+	MAX(comment.created_at) AS last_comment_at, MAX(comment.body) as last_comment_body,
+	users.id as user_id, users.username as user_username, users.profile_picture as user_pp
 	FROM posts AS post
-	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
-	GROUP BY post.id
+	LEFT JOIN comments AS comment 
+		ON comment.post_id = post.id AND comment.path = '0'
+	LEFT JOIN users
+		ON users.id = post.user_id	
+	GROUP BY post.id, users.id
 	ORDER BY post.created_at DESC
 	LIMIT $1 OFFSET $2
 	`
@@ -75,6 +80,7 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 		var post Post
 		var postMetadata PostMetadata
 		var lastCommentBody sql.NullString
+		var user User
 
 		commentsCount := 0
 		var lastCommentAt sql.NullTime
@@ -87,6 +93,9 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 			&commentsCount,
 			&lastCommentAt,
 			&lastCommentBody,
+			&user.Id,
+			&user.Username,
+			&user.ProfilePicture,
 		)
 
 		if err != nil {
@@ -114,6 +123,7 @@ func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
 		postMetadata.CommentsCount = commentsCount
 		postListed.Post = &post
 		postListed.Metadata = &postMetadata
+		postListed.Post.User = &user
 
 		posts = append(posts, &postListed)
 	}
@@ -135,11 +145,13 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 	(select count(*) 
 	from comments 
 	where path = comment.id::text::ltree
-	) as num_of_sub_comments
+	) as num_of_sub_comments, users.id as user_id, users.username as user_username, 
+	users.profile_picture as user_pp
 	FROM posts as post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
+	LEFT JOIN users ON users.id = post.user_id
 	WHERE post.id = $1
-	GROUP BY post.id, comment.id
+	GROUP BY post.id, comment.id, users.id
 	ORDER BY post.created_at DESC, comment.created_at ASC
 	LIMIT $2 OFFSET $3
 	`
@@ -167,6 +179,7 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 		var comment SqlComment
 		var realComment Comment
 		numOfSubComments := 0
+		var user User
 
 		err := rows.Scan(
 			&post.Id,
@@ -179,6 +192,9 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 			&comment.UpdatedAt,
 			&comment.PostId,
 			&numOfSubComments,
+			&user.Id,
+			&user.Username,
+			&user.ProfilePicture,
 		)
 
 		if err != nil {
@@ -190,6 +206,7 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 			realComment.NumOfSubComments = numOfSubComments
 			comments = append(comments, realComment)
 		}
+		post.User = &user
 	}
 
 	if err := rows.Err(); err != nil {

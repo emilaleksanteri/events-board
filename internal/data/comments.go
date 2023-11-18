@@ -23,6 +23,7 @@ type Comment struct {
 	UpdatedAt        time.Time  `json:"updated_at"`
 	NumOfSubComments int        `json:"num_of_sub_comments"`
 	ParentId         int64      `json:"parent_id"`
+	User             *User      `json:"user"`
 }
 
 type SqlComment struct {
@@ -55,17 +56,17 @@ func getValidComment(sql *SqlComment, c *Comment) {
 	}
 }
 
-func (c CommentModel) Insert(comment *Comment) error {
+func (c CommentModel) Insert(comment *Comment, userId int64) error {
 	query := `
-	INSERT INTO comments (post_id, body, path)
-	VALUES ($1, $2, '0')
+	INSERT INTO comments (post_id, body, path, user_id)
+	VALUES ($1, $2, '0', $3)
 	RETURNING id, created_at, updated_at
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := c.DB.QueryRowContext(ctx, query, comment.PostId, comment.Body).
+	err := c.DB.QueryRowContext(ctx, query, comment.PostId, comment.Body, userId).
 		Scan(&comment.Id, &comment.CreatedAt, &comment.UpdatedAt)
 
 	if err != nil {
@@ -161,14 +162,14 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 
 }
 
-func (c CommentModel) InsertSubComment(comment *Comment, parentId int64) error {
+func (c CommentModel) InsertSubComment(comment *Comment, parentId int64, userId int64) error {
 	query := `
-	INSERT INTO comments (post_id, body, path)
-	VALUES ($1, $2, $3::text::ltree)
+	INSERT INTO comments (post_id, body, path, user_id)
+	VALUES ($1, $2, $3::text::ltree, $4)
 	RETURNING id, created_at, updated_at, path::text::bigint
 	`
 
-	args := []any{comment.PostId, comment.Body, parentId}
+	args := []any{comment.PostId, comment.Body, parentId, userId}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

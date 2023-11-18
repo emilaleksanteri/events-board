@@ -32,7 +32,7 @@ func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	err = app.models.Comments.Insert(comment)
+	err = app.models.Comments.Insert(comment, 2)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -81,7 +81,7 @@ func (app *application) createSubCommentHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.models.Comments.InsertSubComment(comment, id)
+	err = app.models.Comments.InsertSubComment(comment, id, 2)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
