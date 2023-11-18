@@ -79,17 +79,29 @@ func (c CommentModel) Insert(comment *Comment, userId int64) error {
 func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 	query := `
 	WITH main_comment as (
-		SELECT id, post_id, body, created_at, updated_at, path,
-		(select count(*) from comments where path = id::text::ltree) as num_of_sub_comments
+		SELECT comments.id, comments.post_id, comments.body, comments.created_at, 
+		comments.updated_at, comments.path,
+		(select count(*) from comments 
+		where path = id::text::ltree) as num_of_sub_comments, 
+		users.id as comment_user_id, users.username as comment_user_name,
+		users.profile_picture as comment_user_profile_picture
 		FROM comments
-		WHERE id = $1
+		LEFT JOIN users ON users.id = comments.user_id
+		WHERE comments.id = $1
+		GROUP BY comments.id, users.id
 	),
 	sub_comments as (
-		SELECT id, post_id, body, created_at, updated_at, path,
-		(select count(*) from comments where path = id::text::ltree) as num_of_sub_comments
+		SELECT comments.id, comments.post_id, comments.body, comments.created_at, 
+		comments.updated_at, comments.path,
+		(select count(*) from comments 
+		where path = id::text::ltree) as num_of_sub_comments, 
+		users.id as sub_user_id, users.username as sub_username,
+		users.profile_picture as sub_profile_picture
 		FROM comments
-		WHERE path <@ $1::text::ltree
-		ORDER BY created_at ASC
+		LEFT JOIN users ON users.id = comments.user_id
+		WHERE comments.path <@ $1::text::ltree
+		GROUP BY comments.id, users.id
+		ORDER BY comments.created_at ASC
 		LIMIT $2
 		OFFSET $3
 	)
@@ -119,6 +131,7 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 		tempComment := Comment{}
 		tempParentId := ""
 		numSubComments := 0
+		var tempUser sqlUser
 
 		err = rows.Scan(
 			&tempComment.Id,
@@ -128,6 +141,9 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 			&tempComment.UpdatedAt,
 			&tempParentId,
 			&numSubComments,
+			&tempUser.Id,
+			&tempUser.Username,
+			&tempUser.ProfilePicture,
 		)
 
 		if err != nil {
@@ -141,10 +157,12 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 
 		tempComment.ParentId = tempParentIdInt
 		tempComment.NumOfSubComments = numSubComments
+		tempComment.User = parseValidUser(&tempUser)
 
 		if tempComment.Id != id {
 			comments = append(comments, &tempComment)
 		} else {
+
 			comment = &tempComment
 		}
 	}
