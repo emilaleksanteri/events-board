@@ -97,7 +97,33 @@ func (sm *SessionModel) GetByUserId(userId int64) (string, error) {
 		return "", err
 	}
 
+	if s.ExpiresAt.Before(time.Now()) {
+		err = sm.Delete(s.Token)
+		if err != nil {
+			return "", err
+		}
+
+		return "", ErrSessionNotFound
+	}
+
 	return s.Token, nil
+}
+
+func (sm *SessionModel) Delete(token string) error {
+	query := `
+	DELETE FROM sessions
+	WHERE token = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := sm.DB.ExecContext(ctx, query, token)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (sm *SessionModel) GetByToken(token string) (*Session, error) {
