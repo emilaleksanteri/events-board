@@ -146,12 +146,15 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 	from comments 
 	where path = comment.id::text::ltree
 	) as num_of_sub_comments, users.id as user_id, users.username as user_username, 
-	users.profile_picture as user_pp
+	users.profile_picture as user_pp, comment_user.id as comment_user_id,
+	comment_user.username as comment_user_username, 
+	comment_user.profile_picture as comment_user_pp
 	FROM posts as post
 	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
 	LEFT JOIN users ON users.id = post.user_id
+	LEFT JOIN users AS comment_user ON comment_user.id = comment.user_id
 	WHERE post.id = $1
-	GROUP BY post.id, comment.id, users.id
+	GROUP BY post.id, comment.id, users.id, comment_user.id
 	ORDER BY post.created_at DESC, comment.created_at ASC
 	LIMIT $2 OFFSET $3
 	`
@@ -180,6 +183,7 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 		var realComment Comment
 		numOfSubComments := 0
 		var user User
+		var commentUser sqlUser
 
 		err := rows.Scan(
 			&post.Id,
@@ -195,15 +199,19 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 			&user.Id,
 			&user.Username,
 			&user.ProfilePicture,
+			&commentUser.Id,
+			&commentUser.Username,
+			&commentUser.ProfilePicture,
 		)
 
 		if err != nil {
 			return nil, err
 		}
 
-		getValidComment(&comment, &realComment)
+		parseValidComment(&comment, &realComment)
 		if realComment.Id != 0 {
 			realComment.NumOfSubComments = numOfSubComments
+			realComment.User = parseValidUser(&commentUser)
 			comments = append(comments, realComment)
 		}
 		post.User = &user

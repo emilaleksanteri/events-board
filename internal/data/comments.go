@@ -34,7 +34,7 @@ type SqlComment struct {
 	UpdatedAt sql.NullTime
 }
 
-func getValidComment(sql *SqlComment, c *Comment) {
+func parseValidComment(sql *SqlComment, c *Comment) {
 	if sql.Id.Valid {
 		c.Id = sql.Id.Int64
 	}
