@@ -1,12 +1,17 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"github.com/emilaleksanteri/pubsub/internal/ip"
-	"golang.org/x/time/rate"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/emilaleksanteri/pubsub/internal/auth"
+	"github.com/emilaleksanteri/pubsub/internal/data"
+	"github.com/emilaleksanteri/pubsub/internal/ip"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/time/rate"
 )
 
 func (app *application) recoverPanic(next http.Handler) http.Handler {
@@ -103,6 +108,39 @@ func (app *application) enableCORS(next http.Handler) http.Handler {
 
 func (app *application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		csrfCookie := FindCookie(r, CSRF_COOKIE)
+		sessionCookie := FindCookie(r, SESSION_COOKIE)
 
+		if csrfCookie == nil || sessionCookie == nil {
+			r = app.contextSetUser(r, data.AnynomousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		valid := auth.CheckMac(
+			fmt.Sprintf("%s%s", sessionCookie.Value, AuthKey),
+			csrfCookie.Value,
+		)
+
+		if !valid {
+			app.invalidCredentialsResponse(w, r)
+			return
+		}
+
+		var userRedis data.CachedUser
+		err := app.redis.Get(r.Context(), sessionCookie.Value).Scan(&userRedis)
+		if err != nil {
+			switch {
+			case errors.Is(err, redis.Nil):
+				app.authenticationRequiredResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+
+			return
+		}
+
+		r = app.contextSetUser(r, &userRedis)
+		next.ServeHTTP(w, r)
 	})
 }

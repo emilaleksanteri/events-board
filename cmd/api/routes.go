@@ -30,6 +30,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/auth", app.handleSignInWithProvider)
 	router.HandlerFunc(http.MethodGet, "/auth/callback", app.handleAuthCallback)
 	router.HandlerFunc(http.MethodGet, "/signout", app.handleSignOut)
+	router.HandlerFunc(http.MethodGet, "/profile", app.getUserSession)
 
-	return app.recoverPanic(app.enableCORS(app.rateLimit(router)))
+	return app.recoverPanic(app.enableCORS(app.rateLimit(app.authenticate(router))))
 }

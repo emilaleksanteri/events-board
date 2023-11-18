@@ -13,7 +13,6 @@ import (
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 	ErrUserNotFound   = errors.New("user not found")
-	AnynomousUser     = &User{}
 )
 
 type UserModel struct {
@@ -34,10 +33,6 @@ type sqlUser struct {
 	Name           sql.NullString
 	ProfilePicture sql.NullString
 	Username       sql.NullString
-}
-
-func (u *User) IsAnynomous() bool {
-	return u == AnynomousUser
 }
 
 func (um *UserModel) Insert(user *User) error {

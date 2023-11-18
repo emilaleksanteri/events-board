@@ -187,6 +187,21 @@ func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.
 	}
 }
 
+func (app *application) getUserSession(w http.ResponseWriter, r *http.Request) {
+	user := app.contextGetUser(r)
+	if user.IsAnynomous() {
+		w.Header().Set("Location", "/signin")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+		return
+	}
+
+	fmt.Println(user.Username)
+
+	t, _ := template.New("foo").Parse(authTemplate)
+	t.Execute(w, user)
+
+}
+
 func (app *application) handleTempAuthTest(w http.ResponseWriter, r *http.Request) {
 
 	t, _ := template.New("foo").Parse(indexTemplate)
@@ -196,8 +211,14 @@ func (app *application) handleTempAuthTest(w http.ResponseWriter, r *http.Reques
 var indexTemplate = `
     <p><a href="/auth?provider=google">Log in with Google</a></p>`
 
+var authTemplate = `
+<p><a href="/signout?provider=google">logout</a></p>
+<p>username: {{.Username}} is logged in</p>
+`
+
 var userTemplate = `
 <p><a href="/signout?provider={{.Provider}}">logout</a></p>
+<p><a href="/profile">profile</a></p>
 <p>Name: {{.Name}} [{{.LastName}}, {{.FirstName}}]</p>
 <p>Email: {{.Email}}</p>
 <p>NickName: {{.NickName}}</p>

@@ -11,6 +11,10 @@ import (
 	"github.com/emilaleksanteri/pubsub/internal/auth"
 )
 
+var (
+	AnynomousUser = &CachedUser{}
+)
+
 // fetch session via session token, token should be 128 bits long
 type Session struct {
 	Id        int64     `json:"id"`
@@ -31,6 +35,10 @@ func (cu CachedUser) MarshalBinary() ([]byte, error) {
 
 func (cu *CachedUser) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, &cu)
+}
+
+func (u *CachedUser) IsAnynomous() bool {
+	return u == AnynomousUser
 }
 
 type SessionModel struct {
