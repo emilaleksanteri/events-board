@@ -108,8 +108,8 @@ func (app *application) enableCORS(next http.Handler) http.Handler {
 
 func (app *application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		csrfCookie := FindCookie(r, CSRF_COOKIE)
-		sessionCookie := FindCookie(r, SESSION_COOKIE)
+		csrfCookie := app.findCookie(r, CSRF_COOKIE)
+		sessionCookie := app.findCookie(r, SESSION_COOKIE)
 
 		if csrfCookie == nil || sessionCookie == nil {
 			r = app.contextSetUser(r, data.AnynomousUser)

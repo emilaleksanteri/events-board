@@ -129,7 +129,7 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 	return i
 }
 
-func (app *application) SetSecureCookie(
+func (app *application) setSecureCookie(
 	w http.ResponseWriter, name, value string, expiry time.Time, maxAge int) {
 
 	cookie := http.Cookie{
@@ -149,11 +149,11 @@ func (app *application) SetSecureCookie(
 	http.SetCookie(w, &cookie)
 }
 
-func (app *application) DeleteSecureCookie(w http.ResponseWriter, name string) {
-	app.SetSecureCookie(w, name, "", time.Now(), -1)
+func (app *application) deleteSecureCookie(w http.ResponseWriter, name string) {
+	app.setSecureCookie(w, name, "", time.Now(), -1)
 }
 
-func FindCookie(r *http.Request, cookieName string) *http.Cookie {
+func (app *application) findCookie(r *http.Request, cookieName string) *http.Cookie {
 	for _, cookie := range r.Cookies() {
 		if cookie.Name == cookieName {
 			return cookie

@@ -142,14 +142,14 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 	csrf := auth.MakeToken(fmt.Sprintf("%s%s", sessionToken, AuthKey))
 	expiry := time.Now().AddDate(0, 1, 0)
 
-	redirectCookie := FindCookie(r, CLIENT_REDIRECT_COKIE)
+	redirectCookie := app.findCookie(r, CLIENT_REDIRECT_COKIE)
 	if redirectCookie == nil {
 		app.noProvidedAuthRedirectUrl(w, r)
 		return
 	}
 
-	app.SetSecureCookie(w, SESSION_COOKIE, sessionToken, expiry, MaxAge)
-	app.SetSecureCookie(w, CSRF_COOKIE, csrf, expiry, MaxAge)
+	app.setSecureCookie(w, SESSION_COOKIE, sessionToken, expiry, MaxAge)
+	app.setSecureCookie(w, CSRF_COOKIE, csrf, expiry, MaxAge)
 
 	w.Header().Set("Location", redirectCookie.Value)
 	w.WriteHeader(http.StatusTemporaryRedirect)
@@ -157,7 +157,7 @@ func (app *application) handleAuthCallback(w http.ResponseWriter, r *http.Reques
 
 func (app *application) handleSignOut(w http.ResponseWriter, r *http.Request) {
 	gothic.Logout(w, r)
-	sessionCookie := FindCookie(r, SESSION_COOKIE)
+	sessionCookie := app.findCookie(r, SESSION_COOKIE)
 	if sessionCookie != nil {
 		err := app.redis.Del(r.Context(), sessionCookie.Value).Err()
 		if err != nil {
@@ -165,17 +165,17 @@ func (app *application) handleSignOut(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		app.DeleteSecureCookie(w, SESSION_COOKIE)
-		app.DeleteSecureCookie(w, CSRF_COOKIE)
+		app.deleteSecureCookie(w, SESSION_COOKIE)
+		app.deleteSecureCookie(w, CSRF_COOKIE)
 	}
 	w.Header().Set("Location", "/signin")
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (app *application) handleSignInWithProvider(w http.ResponseWriter, r *http.Request) {
-	sessionCookie := FindCookie(r, SESSION_COOKIE)
+	sessionCookie := app.findCookie(r, SESSION_COOKIE)
 
-	redirectCookie := FindCookie(r, CLIENT_REDIRECT_COKIE)
+	redirectCookie := app.findCookie(r, CLIENT_REDIRECT_COKIE)
 	if redirectCookie == nil {
 		app.noProvidedAuthRedirectUrl(w, r)
 		return
@@ -223,7 +223,7 @@ func (app *application) handleTempAuthTest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	app.SetSecureCookie(
+	app.setSecureCookie(
 		w,
 		CLIENT_REDIRECT_COKIE,
 		redirectUrl,
