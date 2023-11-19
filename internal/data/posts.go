@@ -35,16 +35,34 @@ type PostData struct {
 
 func (p PostModel) Insert(post *Post, userId int64) error {
 	query := `
-	INSERT INTO posts (body, user_id)
-	VALUES ($1, $2)
-	RETURNING id, created_at, updated_at
+	with insert_post as (
+		insert into posts (body, user_id)
+		values ($1, $2)
+		returning id, created_at
+	) select insert_post.id, insert_post.created_at, 
+	users.id as usr_id, users.username, users.profile_picture from insert_post
+	left join users on users.id = $2
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return p.DB.QueryRowContext(ctx, query, post.Body, userId).
-		Scan(&post.Id, &post.CreatedAt, &post.UpdatedAt)
+	var postUser User
+
+	err := p.DB.QueryRowContext(ctx, query, post.Body, userId).Scan(
+		&post.Id,
+		&post.CreatedAt,
+		&postUser.Id,
+		&postUser.Username,
+		&postUser.ProfilePicture,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	post.User = &postUser
+	return nil
 }
 
 func (p PostModel) GetAll(filters Filters) ([]*PostData, Metadata, error) {
@@ -143,16 +161,19 @@ func (p PostModel) Get(id int64, filters *Filters) (*Post, error) {
 	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, 
 	comment.body, comment.created_at, comment.updated_at, comment.post_id,
 	(select count(*) 
-	from comments 
-	where path = comment.id::text::ltree
+		from comments 
+		where path = comment.id::text::ltree
 	) as num_of_sub_comments, users.id as user_id, users.username as user_username, 
 	users.profile_picture as user_pp, comment_user.id as comment_user_id,
 	comment_user.username as comment_user_username, 
 	comment_user.profile_picture as comment_user_pp
 	FROM posts as post
-	LEFT JOIN comments AS comment ON comment.post_id = post.id AND comment.path = '0'
-	LEFT JOIN users ON users.id = post.user_id
-	LEFT JOIN users AS comment_user ON comment_user.id = comment.user_id
+	LEFT JOIN comments AS comment 
+		ON comment.post_id = post.id AND comment.path = '0'
+	LEFT JOIN users 
+		ON users.id = post.user_id
+	LEFT JOIN users AS comment_user 
+		ON comment_user.id = comment.user_id
 	WHERE post.id = $1
 	GROUP BY post.id, comment.id, users.id, comment_user.id
 	ORDER BY post.created_at DESC, comment.created_at ASC
