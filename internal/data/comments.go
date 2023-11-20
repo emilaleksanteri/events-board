@@ -58,20 +58,34 @@ func parseValidComment(sql *SqlComment, c *Comment) {
 
 func (c CommentModel) Insert(comment *Comment, userId int64) error {
 	query := `
-	INSERT INTO comments (post_id, body, path, user_id)
-	VALUES ($1, $2, '0', $3)
-	RETURNING id, created_at, updated_at
+	with insert_comment as (
+		INSERT INTO comments (post_id, body, path, user_id)
+		VALUES ($1, $2, '0', $3)
+		RETURNING id, created_at, updated_at
+	) select insert_comment.id, insert_comment.created_at, insert_comment.updated_at,
+	users.id as usr_id, users.username, users.profile_picture from insert_comment
+	left join users on users.id = $3
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := c.DB.QueryRowContext(ctx, query, comment.PostId, comment.Body, userId).
-		Scan(&comment.Id, &comment.CreatedAt, &comment.UpdatedAt)
+	var user User
+
+	err := c.DB.QueryRowContext(ctx, query, comment.PostId, comment.Body, userId).Scan(
+		&comment.Id,
+		&comment.CreatedAt,
+		&comment.UpdatedAt,
+		&user.Id,
+		&user.Username,
+		&user.ProfilePicture,
+	)
 
 	if err != nil {
 		return err
 	}
+
+	comment.User = &user
 
 	return nil
 }
@@ -182,9 +196,13 @@ func (c CommentModel) Get(id int64, filters *Filters) (*Comment, error) {
 
 func (c CommentModel) InsertSubComment(comment *Comment, parentId int64, userId int64) error {
 	query := `
-	INSERT INTO comments (post_id, body, path, user_id)
-	VALUES ($1, $2, $3::text::ltree, $4)
-	RETURNING id, created_at, updated_at, path::text::bigint
+	with inseet_comment as (
+		INSERT INTO comments (post_id, body, path, user_id)
+		VALUES ($1, $2, $3::text::ltree, $4)
+		RETURNING id, created_at, updated_at, path::text::bigint
+	) select inseet_comment.id, inseet_comment.created_at, inseet_comment.updated_at,
+	inseet_comment.path, users.id as usr_id, users.username, users.profile_picture from inseet_comment
+	left join users on users.id = $4
 	`
 
 	args := []any{comment.PostId, comment.Body, parentId, userId}
@@ -192,16 +210,23 @@ func (c CommentModel) InsertSubComment(comment *Comment, parentId int64, userId 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
+	var user User
+
 	err := c.DB.QueryRowContext(ctx, query, args...).Scan(
 		&comment.Id,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
 		&comment.ParentId,
+		&user.Id,
+		&user.Username,
+		&user.ProfilePicture,
 	)
 
 	if err != nil {
 		return err
 	}
+
+	comment.User = &user
 
 	return nil
 }
