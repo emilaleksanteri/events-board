@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"database/sql"
 	"flag"
+	"time"
 
 	//"github.com/aws/aws-lambda-go/events"
 	//"github.com/aws/aws-lambda-go/lambda"
@@ -13,9 +15,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/rds/rdsutils"
-
+	//awsConf "github.com/aws/aws-sdk-go-v2/config"
+	//"github.com/aws/aws-sdk-go-v2/feature/rds/auth"
 	_ "github.com/lib/pq"
 )
 
@@ -92,35 +93,23 @@ func main() {
 }
 
 func openDB(cfg config) (*sql.DB, error) {
-	sess := session.Must(session.NewSession())
-	creds := sess.Config.Credentials
-
-	dbEndPoint := fmt.Sprintf("%s:%d", cfg.db.dbHost, cfg.db.dbPort)
-
-	authToken, err := rdsutils.BuildAuthToken(
-		dbEndPoint,
-		cfg.db.region,
+	uri := fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
 		cfg.db.dbUsername,
-		creds,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s",
+		cfg.db.dbPassword,
 		cfg.db.dbHost,
 		cfg.db.dbPort,
-		cfg.db.dbUsername,
-		authToken,
 		cfg.db.dbName,
 	)
 
-	db, err := sql.Open("postgres", dsn)
+	db, err := sql.Open("postgres", uri)
 	if err != nil {
 		return nil, err
 	}
 
-	err = db.Ping()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = db.PingContext(ctx)
 	if err != nil {
 		return nil, err
 	}
