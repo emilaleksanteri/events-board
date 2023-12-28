@@ -8,8 +8,8 @@ import (
 	"flag"
 	"time"
 
-	//"github.com/aws/aws-lambda-go/events"
-	//"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"log/slog"
 	"os"
 	"strings"
@@ -85,11 +85,30 @@ func main() {
 		models: NewModels(db),
 	}
 
+	lambda.Start(func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+		switch request.Path {
+		case "hello":
+			return app.hello(request)
+		default:
+			return events.APIGatewayProxyResponse{
+				StatusCode: 404,
+				Body:       "Not Found",
+			}, nil
+		}
+	})
+
 	err = app.serve()
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
+}
+
+func (app *application) hello(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       "Hello, World!",
+	}, nil
 }
 
 func openDB(cfg config) (*sql.DB, error) {
