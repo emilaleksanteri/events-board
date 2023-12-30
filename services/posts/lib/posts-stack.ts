@@ -21,6 +21,9 @@ export class PostsStack extends Stack {
       functionName: "postsFunc",
       description: "Posts function",
       tracing: lambda.Tracing.ACTIVE,
+      environment: {
+        DB: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+      }
     })
 
     const api = new RestApi(this, "postsApi");
@@ -30,6 +33,9 @@ export class PostsStack extends Stack {
 
     const health = api.root.addResource("health")
     health.addMethod("GET", integration)
+
+    const posts = api.root.addResource("posts")
+    posts.addMethod("GET", integration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayUrl", { value: api.url })

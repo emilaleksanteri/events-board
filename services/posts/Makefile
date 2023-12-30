@@ -4,6 +4,7 @@ export AWS_DEFAULT_REGION=us-east-1
 export LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=300
 VENV_DIR ?= .venv
 
+
 bootstrap:
 	npx cdklocal bootstrap
 
@@ -11,6 +12,7 @@ deploy:
 	npx cdklocal deploy
 
 start:
-	docker-compose up
+	docker-compose up -d
+
 stop:
-	localstack stop
+	docker-compose down
