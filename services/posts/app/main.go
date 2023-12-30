@@ -9,7 +9,7 @@ import (
 func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	response := events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       "\"my lambda yo lets fkn gooooo!\"",
+		Body:       "\"hello from lambda!\"",
 	}
 	return response, nil
 }

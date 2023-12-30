@@ -14,7 +14,6 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=300
       - LAMBDA_IGNORE_ARCHITECTURE=1
-      - DEBUG=1
       - LAMBDA_REMOTE_DOCKER=0
       - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR-}
       - DOCKER_HOST=unix:///var/run/docker.sock
