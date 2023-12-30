@@ -41,9 +41,6 @@ export class PostsStack extends Stack {
     const posts = api.root.addResource("posts")
     posts.addMethod("GET", integration)
 
-    const test = api.root.addResource("test")
-    test.addMethod("GET", integration)
-
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayUrl", { value: api.url })
     new CfnOutput(this, "LambdaArn", { value: lambdaFunc.functionArn })

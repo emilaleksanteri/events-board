@@ -96,16 +96,6 @@ func (app *app) readInt(res events.APIGatewayProxyRequest, key string, defaultVa
 }
 
 func (app *app) listPostsHandler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	db, err := openDB()
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       fmt.Sprintf("\"%s\"", err.Error()),
-		}, nil
-	}
-	defer db.Close()
-
-	app.models = NewModels(db)
 	take, err := app.readInt(event, "take", 10)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
@@ -164,14 +154,6 @@ func (app *app) handler(ctx context.Context, event events.APIGatewayProxyRequest
 	case "/posts":
 		return app.listPostsHandler(ctx, event)
 
-	case "/test":
-		variable := os.Getenv("DB_ADDRESS")
-		response := events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       fmt.Sprintf("\"my db addr is: %s\"", variable),
-		}
-		return response, nil
-
 	default:
 		response := events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -182,7 +164,12 @@ func (app *app) handler(ctx context.Context, event events.APIGatewayProxyRequest
 }
 
 func main() {
-	app := app{}
+	db, err := openDB()
+	if err != nil {
+		panic(err)
+	}
+
+	app := app{models: NewModels(db)}
 
 	lambda.Start(app.handler)
 }
