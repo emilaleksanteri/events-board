@@ -164,6 +164,14 @@ func (app *app) handler(ctx context.Context, event events.APIGatewayProxyRequest
 	case "/posts":
 		return app.listPostsHandler(ctx, event)
 
+	case "/test":
+		variable := os.Getenv("DB_ADDRESS")
+		response := events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       fmt.Sprintf("\"my db addr is: %s\"", variable),
+		}
+		return response, nil
+
 	default:
 		response := events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -180,7 +188,7 @@ func main() {
 }
 
 func openDB() (*sql.DB, error) {
-	addr := os.Getenv("DB")
+	addr := os.Getenv("DB_ADDRESS")
 	db, err := sql.Open("postgres", addr)
 	if err != nil {
 		return nil, err

@@ -13,6 +13,10 @@ import {
 export class PostsStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+    const db_url = process.env.DB_ADDRESS
+    if (!db_url) {
+      throw new Error("DB env var is not set")
+    }
 
     const lambdaFunc = new lambda.Function(this, "postsFunc", {
       code: lambda.Code.fromAsset("app"),
@@ -22,7 +26,7 @@ export class PostsStack extends Stack {
       description: "Posts function",
       tracing: lambda.Tracing.ACTIVE,
       environment: {
-        DB: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+        DB_ADDRESS: db_url
       }
     })
 
@@ -36,6 +40,9 @@ export class PostsStack extends Stack {
 
     const posts = api.root.addResource("posts")
     posts.addMethod("GET", integration)
+
+    const test = api.root.addResource("test")
+    test.addMethod("GET", integration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayUrl", { value: api.url })
