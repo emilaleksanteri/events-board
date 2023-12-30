@@ -7,11 +7,27 @@ import (
 )
 
 func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	response := events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       "\"hello from lambda!\"",
+	switch event.Path {
+	case "/":
+		response := events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       "\"hello from lambda!\"",
+		}
+		return response, nil
+	case "/health":
+		response := events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       "\"running healthy :)\"",
+		}
+
+		return response, nil
+	default:
+		response := events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       "\"not found\"",
+		}
+		return response, nil
 	}
-	return response, nil
 }
 
 func main() {
