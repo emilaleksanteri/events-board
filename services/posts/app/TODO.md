@@ -1,6 +1,7 @@
 # TODO
-- hot reload for lambda
-- logging
-- routing for GET, GET ALL, POST, DELETE, UPDATE
-- event bus
-- get ctx from request
+- get post method via db
+- refactor methods, routes, helpers
+- add relations to queries
+- make post lambda
+- make delete lambda
+- add event bus for posting

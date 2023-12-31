@@ -35,11 +35,14 @@ export class PostsStack extends Stack {
     const integration = new LambdaIntegration(lambdaFunc)
     api.root.addMethod("GET", integration)
 
-    const health = api.root.addResource("health")
+    const health = api.root.addResource("healthcheck")
     health.addMethod("GET", integration)
 
     const posts = api.root.addResource("posts")
     posts.addMethod("GET", integration)
+
+    const post = posts.addResource("{id}")
+    post.addMethod("GET", integration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayUrl", { value: api.url })

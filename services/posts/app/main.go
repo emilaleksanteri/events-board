@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 
 	"database/sql"
@@ -11,8 +10,13 @@ import (
 	"strconv"
 	"time"
 
+	"net/http"
+	"net/url"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/awslabs/aws-lambda-go-api-proxy/chi"
+	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 )
 
@@ -20,6 +24,8 @@ var (
 	ErrRecordNotFound = errors.New("record not found")
 	ErrEditConflict   = errors.New("edit conflict")
 )
+
+var chiLambda *chiadapter.ChiLambda
 
 type PostModel struct {
 	DB *sql.DB
@@ -82,8 +88,46 @@ type app struct {
 	models Models
 }
 
-func (app *app) readInt(res events.APIGatewayProxyRequest, key string, defaultValue int) (int, error) {
-	s := res.QueryStringParameters[key]
+type envelope map[string]any
+
+func (app *app) writeJSON(
+	w http.ResponseWriter,
+	status int,
+	data envelope,
+	headers http.Header,
+) error {
+	js, err := json.MarshalIndent(data, "", "\t")
+	if err != nil {
+		return err
+	}
+
+	js = append(js, '\n')
+
+	for key, value := range headers {
+		w.Header()[key] = value
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(js)
+	return nil
+}
+
+func (app *app) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
+	env := envelope{"error": message}
+	err := app.writeJSON(w, status, env, nil)
+	if err != nil {
+		w.WriteHeader(500)
+	}
+}
+
+func (app *app) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
+	message := "the server encountared a problem and could not process this request :("
+	app.errorResponse(w, r, http.StatusInternalServerError, message)
+}
+
+func (app *app) readInt(qs url.Values, key string, defaultValue int) (int, error) {
+	s := qs.Get(key)
 	if s == "" {
 		return defaultValue, nil
 	}
@@ -95,83 +139,89 @@ func (app *app) readInt(res events.APIGatewayProxyRequest, key string, defaultVa
 	return i, nil
 }
 
-func (app *app) listPostsHandler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	take, err := app.readInt(event, "take", 10)
+func (app *app) listPostsHandler(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	take, err := app.readInt(qs, "take", 10)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 400,
-			Body:       fmt.Sprintf("\"%s\"", err.Error()),
-		}, nil
+		app.serverErrorResponse(w, r, err)
+		return
 	}
 
-	skip, err := app.readInt(event, "skip", 0)
+	skip, err := app.readInt(qs, "skip", 0)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 400,
-			Body:       fmt.Sprintf("\"%s\"", err.Error()),
-		}, nil
+		app.serverErrorResponse(w, r, err)
+		return
 	}
 
 	posts, err := app.models.Posts.list(take, skip)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       fmt.Sprintf("\"%s\"", err.Error()),
-		}, nil
+		app.serverErrorResponse(w, r, err)
+		return
 	}
 
-	res, err := json.Marshal(posts)
+	err = app.writeJSON(w, http.StatusOK, envelope{"posts": posts}, nil)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       fmt.Sprintf("\"%s\"", err.Error()),
-		}, nil
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(res),
-	}, nil
-
-}
-
-func (app *app) handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	switch event.Path {
-	case "/":
-		response := events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       "\"hello from lambda!\"",
-		}
-		return response, nil
-	case "/health":
-		response := events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       "\"running healthy :)\"",
-		}
-
-		return response, nil
-
-	case "/posts":
-		return app.listPostsHandler(ctx, event)
-
-	default:
-		response := events.APIGatewayProxyResponse{
-			StatusCode: 404,
-			Body:       "\"not found\"",
-		}
-		return response, nil
+		app.serverErrorResponse(w, r, err)
+		return
 	}
 }
 
-func main() {
+func (app *app) getPostHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil || id < 1 {
+		app.notFoundHandler(w, r)
+		return
+	}
+	// TODO: add model method for this
+	err = app.writeJSON(w, http.StatusOK, envelope{"post": id}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+}
+
+func (app *app) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
+	err := app.writeJSON(w, http.StatusOK, envelope{"status": "available"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+}
+
+func (app *app) notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusNotFound, "resource not found")
+}
+
+func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	return chiLambda.ProxyWithContext(ctx, event)
+}
+
+func init() {
 	db, err := openDB()
 	if err != nil {
 		panic(err)
 	}
 
 	app := app{models: NewModels(db)}
+	r := chi.NewRouter()
 
-	lambda.Start(app.handler)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		app.writeJSON(w, http.StatusOK, envelope{"message": "hello from lambda"}, nil)
+	})
+
+	r.Get("/healthcheck", app.healthcheckHandler)
+
+	r.Route("/posts", func(r chi.Router) {
+		r.Get("/", app.listPostsHandler)
+		r.Get("/{id}", app.getPostHandler)
+	})
+
+	r.NotFound(app.notFoundHandler)
+	chiLambda = chiadapter.New(r)
+}
+
+func main() {
+	lambda.StartWithOptions(handler, lambda.WithContext(context.Background()))
 }
 
 func openDB() (*sql.DB, error) {
