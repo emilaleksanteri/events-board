@@ -52,11 +52,10 @@ func init() {
 		app.writeJSON(w, http.StatusOK, envelope{"message": "hello from root"}, nil)
 	})
 
-	r.Get("/posts/healthcheck", app.healthcheckHandler)
-
 	r.Route("/posts", func(r chi.Router) {
 		r.Get("/", app.listPostsHandler)
 		r.Get("/{id}", app.getPostHandler)
+		r.Get("/healthcheck", app.healthcheckHandler)
 	})
 
 	r.NotFound(app.notFoundHandler)
