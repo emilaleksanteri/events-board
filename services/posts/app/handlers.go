@@ -50,7 +50,20 @@ func (app *app) getPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := app.models.Posts.Get(int64(id))
+	qs := r.URL.Query()
+	take, err := app.readInt(qs, "take", 10)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	skip, err := app.readInt(qs, "skip", 0)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	post, err := app.models.Posts.Get(int64(id), take, skip)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrRecordNotFound):

@@ -49,6 +49,28 @@ type User struct {
 	sqlUsername       sql.NullString `json:"-"`
 }
 
+func (u *User) parseSqlNulls() {
+	if u.sqlID.Valid {
+		u.Id = u.sqlID.Int64
+	}
+
+	if u.sqlEmail.Valid {
+		u.Email = u.sqlEmail.String
+	}
+
+	if u.sqlName.Valid {
+		u.Name = u.sqlName.String
+	}
+
+	if u.sqlProfilePicture.Valid {
+		u.ProfilePicture = u.sqlProfilePicture.String
+	}
+
+	if u.sqlUsername.Valid {
+		u.Username = u.sqlUsername.String
+	}
+}
+
 type Comment struct {
 	Id               int64          `json:"id"`
 	PostId           int64          `json:"post_id"`
@@ -64,6 +86,28 @@ type Comment struct {
 	sqlBody          sql.NullString `json:"-"`
 	sqlCreatedAt     sql.NullTime   `json:"-"`
 	sqlUpdatedAt     sql.NullTime   `json:"-"`
+}
+
+func (c *Comment) parseSqlNulls() {
+	if c.sqlId.Valid {
+		c.Id = c.sqlId.Int64
+	}
+
+	if c.sqlPostId.Valid {
+		c.PostId = c.sqlPostId.Int64
+	}
+
+	if c.sqlBody.Valid {
+		c.Body = c.sqlBody.String
+	}
+
+	if c.sqlCreatedAt.Valid {
+		c.CreatedAt = c.sqlCreatedAt.Time
+	}
+
+	if c.sqlUpdatedAt.Valid {
+		c.UpdatedAt = c.sqlUpdatedAt.Time
+	}
 }
 
 type Metadata struct {
@@ -96,17 +140,17 @@ func (p *PostModel) List(take, skip int) ([]*PostData, Metadata, error) {
 	LIMIT $1 OFFSET $2
 	`
 
+	metadata := Metadata{}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	args := []any{take, skip}
 	rows, err := p.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, Metadata{}, err
+		return nil, metadata, err
 	}
 
 	defer rows.Close()
 	var posts []*PostData
-	numOfPosts := 0
 
 	for rows.Next() {
 		postListed := PostData{}
@@ -132,7 +176,7 @@ func (p *PostModel) List(take, skip int) ([]*PostData, Metadata, error) {
 		)
 
 		if err != nil {
-			return nil, Metadata{}, err
+			return nil, metadata, err
 		}
 
 		if lastCommentAt.Valid {
@@ -143,17 +187,7 @@ func (p *PostModel) List(take, skip int) ([]*PostData, Metadata, error) {
 			postMetadata.LatestComment = lastCommentBody.String
 		}
 
-		if user.sqlID.Valid {
-			user.Id = user.sqlID.Int64
-		}
-
-		if user.sqlUsername.Valid {
-			user.Username = user.sqlUsername.String
-		}
-
-		if user.sqlProfilePicture.Valid {
-			user.ProfilePicture = user.sqlProfilePicture.String
-		}
+		user.parseSqlNulls()
 
 		postMetadata.CommentsCount = commentsCount
 		postListed.Post = &post
@@ -164,36 +198,103 @@ func (p *PostModel) List(take, skip int) ([]*PostData, Metadata, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, Metadata{}, err
+		return nil, metadata, err
 	}
 
-	numOfPosts = len(posts)
-	metadata := calculateMetadata(numOfPosts)
-
-	return posts, metadata, nil
+	return posts, calculateMetadata(len(posts)), nil
 }
 
-func (p *PostModel) Get(id int64) (*Post, error) {
+func (p *PostModel) Get(id int64, take, offset int) (*Post, error) {
 	query := `
-		SELECT id, body, created_at, updated_at
-		FROM posts
-		WHERE id = $1
+	SELECT post.id, post.body, post.created_at, post.updated_at, comment.id, 
+	comment.body, comment.created_at, comment.updated_at, comment.post_id,
+	(select count(*) 
+		from comments 
+		where path = comment.id::text::ltree
+	) as num_of_sub_comments, users.id as user_id, users.username as user_username, 
+	users.profile_picture as user_pp, comment_user.id as comment_user_id,
+	comment_user.username as comment_user_username, 
+	comment_user.profile_picture as comment_user_pp
+	FROM posts as post
+	LEFT JOIN comments AS comment 
+		ON comment.post_id = post.id AND comment.path = '0'
+	LEFT JOIN users 
+		ON users.id = post.user_id
+	LEFT JOIN users AS comment_user 
+		ON comment_user.id = comment.user_id
+	WHERE post.id = $1
+	GROUP BY post.id, comment.id, users.id, comment_user.id
+	ORDER BY post.created_at DESC, comment.created_at ASC
+	LIMIT $2 OFFSET $3
 	`
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	args := []interface{}{id}
-	row := p.DB.QueryRowContext(ctx, query, args...)
+	args := []any{id, take, offset}
+	rows, err := p.DB.QueryContext(ctx, query, args...)
 
-	var post Post
-	err := row.Scan(&post.Id, &post.Body, &post.CreatedAt, &post.UpdatedAt)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrRecordNotFound
-		} else {
+		default:
 			return nil, err
 		}
 	}
 
+	defer rows.Close()
+
+	var post Post
+	var comments []Comment
+
+	for rows.Next() {
+		comment := Comment{}
+		numOfSubComments := 0
+		user := User{}
+		commentUser := User{}
+
+		err := rows.Scan(
+			&post.Id,
+			&post.Body,
+			&post.CreatedAt,
+			&post.UpdatedAt,
+			&comment.sqlId,
+			&comment.sqlBody,
+			&comment.sqlCreatedAt,
+			&comment.sqlUpdatedAt,
+			&comment.sqlPostId,
+			&numOfSubComments,
+			&user.sqlID,
+			&user.sqlUsername,
+			&user.sqlProfilePicture,
+			&commentUser.sqlID,
+			&commentUser.sqlUsername,
+			&commentUser.sqlProfilePicture,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		comment.parseSqlNulls()
+		user.parseSqlNulls()
+		commentUser.parseSqlNulls()
+
+		comment.NumOfSubComments = numOfSubComments
+		comment.User = &commentUser
+		comments = append(comments, comment)
+		post.User = &user
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if post.Id == 0 {
+		return nil, ErrRecordNotFound
+	}
+
+	post.Comments = comments
 	return &post, nil
 }
 
