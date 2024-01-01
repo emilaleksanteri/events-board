@@ -1,7 +1,7 @@
 include .envrc
 build:
 	@echo 'Building posts...'
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build  -o main main.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build  -o main
 
 zip:
 	@echo 'Zipping posts...'
