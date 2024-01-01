@@ -31,16 +31,15 @@ func (app *app) listPostsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	posts, err := app.models.Posts.List(take, skip)
+	posts, metadata, err := app.models.Posts.List(take, skip)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"posts": posts}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"posts": posts, "metadata": metadata}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
-		return
 	}
 }
 

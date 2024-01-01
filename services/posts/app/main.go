@@ -49,7 +49,7 @@ func init() {
 	r := chi.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		app.writeJSON(w, http.StatusOK, envelope{"message": "hello from lambda hot reload"}, nil)
+		app.writeJSON(w, http.StatusOK, envelope{"message": "hello from root"}, nil)
 	})
 
 	r.Get("/healthcheck", app.healthcheckHandler)
