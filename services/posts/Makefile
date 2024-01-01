@@ -37,14 +37,16 @@ build/infra:
 	@echo "Building infra"
 	npm run build
 
-## build/app: builds go app
-.PHONY: build/app
-build/app:
+## build/lambdas: all lambdas for api
+.PHONY: build/lambdas
+build/lambdas:
 	@echo "Building go app"
-	cd ./app && make build && make zip
+	cd ./lambdas/getPosts && make build && make zip
+	cd ./lambdas/postPost && make build && make zip
 
-## tidy/app: go mod tidy for app dir
-.PHONY: tidy/app
-tidy/app:
+## tidy/lambdas: go mod tidy for all lambdas
+.PHONY: tidy/lambdas
+tidy/lambdas:
 	@echo "Tidying app modules"
-	cd ./app && go mod tidy
+	cd ./lambdas/getPosts && go mod tidy
+	cd ./lambdas/postPost && go mod tidy
