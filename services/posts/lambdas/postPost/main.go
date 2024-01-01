@@ -4,16 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/chi"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
-
-	"github.com/aws/aws-lambda-go/events"
 )
 
 var chiLambda *chiadapter.ChiLambda
@@ -70,6 +70,38 @@ func (u *User) parseSqlNulls() {
 	}
 }
 
+func (p PostModel) Insert(post *Post, userId int64) error {
+	query := `
+	with insert_post as (
+		insert into posts (body, user_id)
+		values ($1, $2)
+		returning id, created_at
+	) select insert_post.id, insert_post.created_at, 
+	users.id as usr_id, users.username, users.profile_picture from insert_post
+	left join users on users.id = $2
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var postUser User
+
+	err := p.DB.QueryRowContext(ctx, query, post.Body, userId).Scan(
+		&post.Id,
+		&post.CreatedAt,
+		&postUser.Id,
+		&postUser.Username,
+		&postUser.ProfilePicture,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	post.User = &postUser
+	return nil
+}
+
 func (app *app) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	err := app.writeJSON(w, http.StatusOK, envelope{"status": "available"}, nil)
 	if err != nil {
@@ -80,6 +112,40 @@ func (app *app) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 
 func (app *app) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusNotFound, "resource not found")
+}
+
+func (app *app) createHandler(w http.ResponseWriter, r *http.Request) {
+	tempUsrId := int64(2)
+	var input struct {
+		Body string `json:"body"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	if input.Body == "" {
+		app.errorResponse(w, r, http.StatusBadRequest, "missing body")
+		return
+	}
+
+	post := &Post{
+		Body: input.Body,
+	}
+	err = app.models.Posts.Insert(post, tempUsrId)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/posts/%d", post.Id))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"post": post}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 type Models struct {
@@ -123,12 +189,7 @@ func init() {
 	app := app{models: NewModels(db)}
 	r := chi.NewRouter()
 	r.Get("/create/healthcheck", app.healthcheckHandler)
-	r.Post("/create", func(w http.ResponseWriter, r *http.Request) {
-		err := app.writeJSON(w, http.StatusOK, envelope{"post": "created"}, nil)
-		if err != nil {
-			app.serverErrorResponse(w, r, err)
-		}
-	})
+	r.Post("/create", app.createHandler)
 
 	r.NotFound(app.notFoundHandler)
 
