@@ -8,6 +8,8 @@ import {
   RestApi,
   LambdaIntegration,
 } from "aws-cdk-lib/aws-apigateway";
+import { Bucket } from 'aws-cdk-lib/aws-s3';
+import path = require('path');
 
 
 export class PostsStack extends Stack {
@@ -18,8 +20,17 @@ export class PostsStack extends Stack {
       throw new Error("DB env var is not set")
     }
 
+    const hotReloadBucket = Bucket.fromBucketName(
+      this,
+      "HotReloadingBucket",
+      "hot-reload"
+    )
+
     const lambdaFunc = new lambda.Function(this, "postsFunc", {
-      code: lambda.Code.fromAsset("app"),
+      code: lambda.Code.fromBucket(
+        hotReloadBucket,
+        path.join(__dirname, "../app")
+      ),
       runtime: lambda.Runtime.GO_1_X,
       handler: "main",
       functionName: "postsFunc",
