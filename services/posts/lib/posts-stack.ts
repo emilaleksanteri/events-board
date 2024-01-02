@@ -137,7 +137,7 @@ export class PostsStack extends Stack {
     deleteHealth.addMethod("GET", deleteIntegration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
-    new CfnOutput(this, "GatewayEndPoints", { value: "\n" + api.methods.join("\n") })
     new CfnOutput(this, "GatewayUrl", { value: api.url })
+    new CfnOutput(this, "GatewayEndPoints", { value: "\n" + api.methods.join("\n") })
   }
 }

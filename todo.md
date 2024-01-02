@@ -1,5 +1,5 @@
 # todo eh
-- break current structure into microservcies
+- break current structure into microservcies -> start with most basic functionality
 - post service for making posts
     - if img send img to s3 bucket, store key in db w post
     - push event to event bridge

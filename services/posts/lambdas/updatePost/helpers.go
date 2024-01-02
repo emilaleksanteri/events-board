@@ -49,19 +49,6 @@ func (app *app) serverErrorResponse(w http.ResponseWriter, r *http.Request, err 
 	app.errorResponse(w, r, http.StatusInternalServerError, message)
 }
 
-func (app *app) readInt(qs url.Values, key string, defaultValue int) (int, error) {
-	s := qs.Get(key)
-	if s == "" {
-		return defaultValue, nil
-	}
-
-	i, err := strconv.Atoi(s)
-	if err != nil {
-		return defaultValue, errors.New("key must be a valid int")
-	}
-	return i, nil
-}
-
 func (app *app) readJSON(w http.ResponseWriter, r *http.Request, dist any) error {
 	maxBytes := 1_048_576
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
