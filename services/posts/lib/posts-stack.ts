@@ -1,5 +1,5 @@
 import {
-  CfnOutput, Stack, StackProps
+  CfnOutput, Stack, StackProps, Tags
 } from 'aws-cdk-lib';
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
@@ -16,6 +16,8 @@ enum BaseUrlPaths {
   POSTS = "posts",
   POST = "{id}",
   CREATE_POST = "create",
+  UPDATE = "update",
+  UPDATE_POST = "{id}",
 }
 
 function createLambda(
@@ -73,7 +75,20 @@ export class PostsStack extends Stack {
       db_url
     )
 
-    const api = new RestApi(this, "postsApi");
+    const lambdaUpdate = createLambda(
+      this,
+      "updatePostFunc",
+      "../lambdas/updatePost",
+      hotReloadBucket,
+      db_url
+    )
+
+    const api = new RestApi(this, "postsApi", {
+      restApiName: "postsApi",
+      description: "API for posts",
+    })
+    Tags.of(api).add("_custom_id_", "postsApi")
+
 
     // POSTS (GET)
     const integration = new LambdaIntegration(lambdaPosts)
@@ -95,6 +110,15 @@ export class PostsStack extends Stack {
 
     const createHealth = create.addResource(BaseUrlPaths.HEALTH)
     createHealth.addMethod("GET", createIntegration)
+
+    // UPDATE (PUT)
+    const updateIntegration = new LambdaIntegration(lambdaUpdate)
+    const update = api.root.addResource(BaseUrlPaths.UPDATE)
+    const updatePost = update.addResource(BaseUrlPaths.UPDATE_POST)
+    updatePost.addMethod("PUT", updateIntegration)
+
+    const updateHealth = update.addResource(BaseUrlPaths.HEALTH)
+    updateHealth.addMethod("GET", updateIntegration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayEndPoints", { value: api.methods.join("\n") })

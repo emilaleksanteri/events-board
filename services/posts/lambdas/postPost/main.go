@@ -16,16 +16,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var chiLambda *chiadapter.ChiLambda
+var (
+	ErrRecordNotFound = errors.New("record not found")
+	ErrEditConflict   = errors.New("edit conflict")
+	chiLambda         *chiadapter.ChiLambda
+)
 
 type PostModel struct {
 	DB *sql.DB
 }
-
-var (
-	ErrRecordNotFound = errors.New("record not found")
-	ErrEditConflict   = errors.New("edit conflict")
-)
 
 type Post struct {
 	Id        int64     `json:"id"`
@@ -46,28 +45,6 @@ type User struct {
 	sqlName           sql.NullString `json:"-"`
 	sqlProfilePicture sql.NullString `json:"-"`
 	sqlUsername       sql.NullString `json:"-"`
-}
-
-func (u *User) parseSqlNulls() {
-	if u.sqlID.Valid {
-		u.Id = u.sqlID.Int64
-	}
-
-	if u.sqlEmail.Valid {
-		u.Email = u.sqlEmail.String
-	}
-
-	if u.sqlName.Valid {
-		u.Name = u.sqlName.String
-	}
-
-	if u.sqlProfilePicture.Valid {
-		u.ProfilePicture = u.sqlProfilePicture.String
-	}
-
-	if u.sqlUsername.Valid {
-		u.Username = u.sqlUsername.String
-	}
 }
 
 func (p PostModel) Insert(post *Post, userId int64) error {
@@ -127,18 +104,35 @@ func (app *app) createHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Body == "" {
-		app.errorResponse(w, r, http.StatusBadRequest, "missing body")
+		app.errorResponse(
+			w,
+			r,
+			http.StatusBadRequest,
+			"missing body, min length is 1 character",
+		)
+		return
+	}
+
+	if len(input.Body) > 20_000 {
+		app.errorResponse(
+			w,
+			r,
+			http.StatusBadRequest,
+			"body too long, max is 20_000 characters",
+		)
 		return
 	}
 
 	post := &Post{
 		Body: input.Body,
 	}
+
 	err = app.models.Posts.Insert(post, tempUsrId)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
+
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/posts/%d", post.Id))
 
@@ -190,7 +184,6 @@ func init() {
 	r := chi.NewRouter()
 	r.Get("/create/healthcheck", app.healthcheckHandler)
 	r.Post("/create", app.createHandler)
-
 	r.NotFound(app.notFoundHandler)
 
 	chiLambda = chiadapter.New(r)
