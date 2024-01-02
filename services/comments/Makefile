@@ -16,6 +16,11 @@ help:
 bootstrap:
 	npx cdklocal bootstrap
 
+## synth: synth local cdk
+.PHONY: synth
+synth:
+	npx cdklocal synth 
+
 ## deploy: deploy local cdk
 .PHONY: deploy
 deploy:
@@ -43,6 +48,7 @@ build/lambdas:
 	@echo "Building go app"
 	cd ./lambdas/postComment && make build && make zip
 	cd ./lambdas/getComment && make build && make zip
+	cd ./lambdas/updateComment && make build && make zip
 
 ## tidy/lambdas: go mod tidy for all lambdas
 .PHONY: tidy/lambdas
@@ -50,3 +56,4 @@ tidy/lambdas:
 	@echo "Tidying app modules"
 	cd ./lambdas/postComment && go mod tidy
 	cd ./lambdas/getComment && go mod tidy
+	cd ./lambdas/updateComment && go mod tidy

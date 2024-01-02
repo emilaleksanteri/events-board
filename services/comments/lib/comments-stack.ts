@@ -16,6 +16,7 @@ enum BaseUrlPaths {
   BY_ID = "{id}",
   CREATE_COMMENT = "create",
   COMMENTS = "comments",
+  UPDATE_COMMENT = "update",
 }
 
 function createLambda(
@@ -56,12 +57,6 @@ export class CommentsStack extends Stack {
       "hot-reload"
     )
 
-    const api = new RestApi(this, "commentsApi", {
-      restApiName: "commentsApi",
-      description: "API for comments",
-    })
-    Tags.of(api).add("_custom_id_", "commentsApi")
-
     const postCommentLambda = createLambda(
       this,
       "PostCommentLambda",
@@ -77,6 +72,21 @@ export class CommentsStack extends Stack {
       hotReloadBucket,
       db_url,
     )
+
+    const updateCommentLambda = createLambda(
+      this,
+      "UpdateCommentLambda",
+      "../lambdas/updateComment",
+      hotReloadBucket,
+      db_url,
+    )
+
+    const api = new RestApi(this, "commentsapi", {
+      restApiName: "commentsapi",
+      description: "API for comments",
+    })
+    Tags.of(api).add("_custom_id_", "commentsapi")
+
 
     // COMMENT (POST)
     const postCommentIntegration = new LambdaIntegration(postCommentLambda)
@@ -99,9 +109,18 @@ export class CommentsStack extends Stack {
     const getHealth = comments.addResource(BaseUrlPaths.HEALTH)
     getHealth.addMethod("GET", getCommentIntegration)
 
+    // COMMENT (PUT)
+    const updateCommentIntegration = new LambdaIntegration(updateCommentLambda)
+    const update = api.root.addResource(BaseUrlPaths.UPDATE_COMMENT)
+
+    const updateComment = update.addResource(BaseUrlPaths.BY_ID)
+    updateComment.addMethod("PUT", updateCommentIntegration)
+
+    const updateHealth = update.addResource(BaseUrlPaths.HEALTH)
+    updateHealth.addMethod("GET", updateCommentIntegration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
-    new CfnOutput(this, "GatewayEndPoints", { value: "\n" + api.methods.join("\n") })
     new CfnOutput(this, "GatewayUrl", { value: api.url })
+    new CfnOutput(this, "GatewayEndPoints", { value: "\n" + api.methods.join("\n") })
   }
 }
