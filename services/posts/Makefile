@@ -44,6 +44,7 @@ build/lambdas:
 	cd ./lambdas/getPosts && make build && make zip
 	cd ./lambdas/postPost && make build && make zip
 	cd ./lambdas/updatePost && make build && make zip
+	cd ./lambdas/deletePost && make build && make zip
 
 ## tidy/lambdas: go mod tidy for all lambdas
 .PHONY: tidy/lambdas
@@ -52,3 +53,4 @@ tidy/lambdas:
 	cd ./lambdas/getPosts && go mod tidy
 	cd ./lambdas/postPost && go mod tidy
 	cd ./lambdas/updatePost && go mod tidy
+	cd ./lambdas/deletePost && go mod tidy

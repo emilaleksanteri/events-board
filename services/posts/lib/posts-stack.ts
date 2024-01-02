@@ -14,10 +14,10 @@ import path = require('path');
 enum BaseUrlPaths {
   HEALTH = "healthcheck",
   POSTS = "posts",
-  POST = "{id}",
+  BY_ID = "{id}",
   CREATE_POST = "create",
   UPDATE = "update",
-  UPDATE_POST = "{id}",
+  DELETE = "delete",
 }
 
 function createLambda(
@@ -42,7 +42,6 @@ function createLambda(
       DB_ADDRESS: db_url
     }
   })
-
 }
 
 export class PostsStack extends Stack {
@@ -83,6 +82,14 @@ export class PostsStack extends Stack {
       db_url
     )
 
+    const lambdaDelete = createLambda(
+      this,
+      "deletePostFunc",
+      "../lambdas/deletePost",
+      hotReloadBucket,
+      db_url
+    )
+
     const api = new RestApi(this, "postsApi", {
       restApiName: "postsApi",
       description: "API for posts",
@@ -97,7 +104,7 @@ export class PostsStack extends Stack {
     const posts = api.root.addResource(BaseUrlPaths.POSTS)
     posts.addMethod("GET", integration)
 
-    const post = posts.addResource(BaseUrlPaths.POST)
+    const post = posts.addResource(BaseUrlPaths.BY_ID)
     post.addMethod("GET", integration)
 
     const health = posts.addResource(BaseUrlPaths.HEALTH)
@@ -114,14 +121,23 @@ export class PostsStack extends Stack {
     // UPDATE (PUT)
     const updateIntegration = new LambdaIntegration(lambdaUpdate)
     const update = api.root.addResource(BaseUrlPaths.UPDATE)
-    const updatePost = update.addResource(BaseUrlPaths.UPDATE_POST)
+    const updatePost = update.addResource(BaseUrlPaths.BY_ID)
     updatePost.addMethod("PUT", updateIntegration)
 
     const updateHealth = update.addResource(BaseUrlPaths.HEALTH)
     updateHealth.addMethod("GET", updateIntegration)
 
+    // DELETE (DELETE)
+    const deleteIntegration = new LambdaIntegration(lambdaDelete)
+    const deleteResource = api.root.addResource(BaseUrlPaths.DELETE)
+    const deletePost = deleteResource.addResource(BaseUrlPaths.BY_ID)
+    deletePost.addMethod("DELETE", deleteIntegration)
+
+    const deleteHealth = deleteResource.addResource(BaseUrlPaths.HEALTH)
+    deleteHealth.addMethod("GET", deleteIntegration)
+
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
-    new CfnOutput(this, "GatewayEndPoints", { value: api.methods.join("\n") })
+    new CfnOutput(this, "GatewayEndPoints", { value: "\n" + api.methods.join("\n") })
     new CfnOutput(this, "GatewayUrl", { value: api.url })
   }
 }
