@@ -56,42 +56,15 @@ func (u *User) parseSqlNulls() {
 }
 
 type Comment struct {
-	Id               int64          `json:"id"`
-	PostId           int64          `json:"post_id"`
-	SubComments      []*Comment     `json:"sub_comments"`
-	Body             string         `json:"body"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
-	NumOfSubComments int            `json:"num_of_sub_comments"`
-	ParentId         int64          `json:"parent_id"`
-	User             *User          `json:"user"`
-	sqlId            sql.NullInt64  `json:"-"`
-	sqlPostId        sql.NullInt64  `json:"-"`
-	sqlBody          sql.NullString `json:"-"`
-	sqlCreatedAt     sql.NullTime   `json:"-"`
-	sqlUpdatedAt     sql.NullTime   `json:"-"`
-}
-
-func (c *Comment) parseSqlNulls() {
-	if c.sqlId.Valid {
-		c.Id = c.sqlId.Int64
-	}
-
-	if c.sqlPostId.Valid {
-		c.PostId = c.sqlPostId.Int64
-	}
-
-	if c.sqlBody.Valid {
-		c.Body = c.sqlBody.String
-	}
-
-	if c.sqlCreatedAt.Valid {
-		c.CreatedAt = c.sqlCreatedAt.Time
-	}
-
-	if c.sqlUpdatedAt.Valid {
-		c.UpdatedAt = c.sqlUpdatedAt.Time
-	}
+	Id               int64      `json:"id"`
+	PostId           int64      `json:"post_id"`
+	SubComments      []*Comment `json:"sub_comments"`
+	Body             string     `json:"body"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	NumOfSubComments int        `json:"num_of_sub_comments"`
+	ParentId         int64      `json:"parent_id"`
+	User             *User      `json:"user"`
 }
 
 func (c *CommentModel) insertRootComment(comment *Comment, userId int64) error {

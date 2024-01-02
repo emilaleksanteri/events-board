@@ -15,6 +15,7 @@ enum BaseUrlPaths {
   HEALTH = "healthcheck",
   BY_ID = "{id}",
   CREATE_COMMENT = "create",
+  COMMENTS = "comments",
 }
 
 function createLambda(
@@ -69,6 +70,14 @@ export class CommentsStack extends Stack {
       db_url,
     )
 
+    const getCommentLambda = createLambda(
+      this,
+      "GetCommentLambda",
+      "../lambdas/getComment",
+      hotReloadBucket,
+      db_url,
+    )
+
     // COMMENT (POST)
     const postCommentIntegration = new LambdaIntegration(postCommentLambda)
     const create = api.root.addResource(BaseUrlPaths.CREATE_COMMENT)
@@ -79,6 +88,16 @@ export class CommentsStack extends Stack {
 
     const createHealth = create.addResource(BaseUrlPaths.HEALTH)
     createHealth.addMethod("GET", postCommentIntegration)
+
+    // COMMENT (GET)
+    const getCommentIntegration = new LambdaIntegration(getCommentLambda)
+    const comments = api.root.addResource(BaseUrlPaths.COMMENTS)
+
+    const getComment = comments.addResource(BaseUrlPaths.BY_ID)
+    getComment.addMethod("GET", getCommentIntegration)
+
+    const getHealth = comments.addResource(BaseUrlPaths.HEALTH)
+    getHealth.addMethod("GET", getCommentIntegration)
 
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })

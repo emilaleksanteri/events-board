@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 )
 
@@ -26,19 +24,6 @@ func (app *app) serverErrorResponse(w http.ResponseWriter, r *http.Request, err 
 
 func (app *app) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
-}
-
-func (app *app) readInt(qs url.Values, key string, defaultValue int) (int, error) {
-	s := qs.Get(key)
-	if s == "" {
-		return defaultValue, nil
-	}
-
-	i, err := strconv.Atoi(s)
-	if err != nil {
-		return defaultValue, errors.New("key must be a valid int")
-	}
-	return i, nil
 }
 
 type envelope map[string]any
