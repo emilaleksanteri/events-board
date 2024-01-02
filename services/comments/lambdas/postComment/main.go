@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -67,7 +69,59 @@ func (app *app) createCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"comment": comment}, nil)
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/comments/%d", comment.Id))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"comment": comment}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *app) createSubCommentHandler(w http.ResponseWriter, r *http.Request) {
+	parentId, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusBadRequest, "invalid comment id")
+		return
+	}
+
+	tempUserId := int64(2)
+	var input struct {
+		Body   string `json:"body"`
+		PostId int64  `json:"post_id"`
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Body == "" {
+		app.errorResponse(w, r, http.StatusBadRequest, "body must not be blank")
+		return
+	}
+
+	if input.PostId < 1 {
+		app.errorResponse(w, r, http.StatusBadRequest, "post_id must be a valid integer")
+		return
+	}
+
+	comment := &Comment{
+		Body:   input.Body,
+		PostId: input.PostId,
+	}
+
+	err = app.models.Comments.insertSubComment(comment, tempUserId, int64(parentId))
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/comments/%d", comment.Id))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"comment": comment}, headers)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -105,6 +159,8 @@ func init() {
 	r := chi.NewRouter()
 	r.Route("/create", func(r chi.Router) {
 		r.Post("/", app.createCommentHandler)
+		r.Post("/{id}", app.createSubCommentHandler)
+
 		r.Get("/healthcheck", app.healthcheckHandler)
 	})
 	r.NotFound(app.notFoundHandler)

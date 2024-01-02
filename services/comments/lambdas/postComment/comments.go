@@ -128,3 +128,41 @@ func (c *CommentModel) insertRootComment(comment *Comment, userId int64) error {
 
 	return nil
 }
+
+func (c *CommentModel) insertSubComment(comment *Comment, userId, parentId int64) error {
+	query := `
+	with inseet_comment as (
+		INSERT INTO comments (post_id, body, path, user_id)
+		VALUES ($1, $2, $3::text::ltree, $4)
+		RETURNING id, created_at, updated_at, path::text::bigint
+	) select inseet_comment.id, inseet_comment.created_at, inseet_comment.updated_at,
+	inseet_comment.path, users.id as usr_id, users.username, users.profile_picture from inseet_comment
+	left join users on users.id = $4
+	`
+
+	args := []any{comment.PostId, comment.Body, parentId, userId}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var user User
+
+	err := c.DB.QueryRowContext(ctx, query, args...).Scan(
+		&comment.Id,
+		&comment.CreatedAt,
+		&comment.UpdatedAt,
+		&comment.ParentId,
+		&user.sqlId,
+		&user.sqlUsername,
+		&user.sqlProfilePicture,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	user.parseSqlNulls()
+	comment.User = &user
+
+	return nil
+}

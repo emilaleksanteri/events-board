@@ -74,6 +74,9 @@ export class CommentsStack extends Stack {
     const create = api.root.addResource(BaseUrlPaths.CREATE_COMMENT)
     create.addMethod("POST", postCommentIntegration)
 
+    const createSubCommetn = create.addResource(BaseUrlPaths.BY_ID)
+    createSubCommetn.addMethod("POST", postCommentIntegration)
+
     const createHealth = create.addResource(BaseUrlPaths.HEALTH)
     createHealth.addMethod("GET", postCommentIntegration)
 
