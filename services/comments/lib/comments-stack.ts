@@ -8,8 +8,8 @@ import {
   RestApi,
   LambdaIntegration,
 } from "aws-cdk-lib/aws-apigateway";
-import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
-import path = require('path');
+import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3'
+import * as path from "path"
 
 enum BaseUrlPaths {
   HEALTH = "healthcheck",
@@ -43,11 +43,14 @@ function createLambda(
   })
 }
 
-export class CommentsStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
-    const db_url = process.env.DB_ADDRESS
-    if (!db_url) {
+interface CommentsProps {
+  db_url?: string
+}
+
+export class Comments extends Construct {
+  constructor(scope: Construct, id: string, props: CommentsProps) {
+    super(scope, id);
+    if (!props.db_url) {
       throw new Error("DB env var is not set")
     }
 
@@ -62,7 +65,7 @@ export class CommentsStack extends Stack {
       "PostCommentLambda",
       "../lambdas/postComment",
       hotReloadBucket,
-      db_url,
+      props.db_url,
     )
 
     const getCommentLambda = createLambda(
@@ -70,7 +73,7 @@ export class CommentsStack extends Stack {
       "GetCommentLambda",
       "../lambdas/getComment",
       hotReloadBucket,
-      db_url,
+      props.db_url,
     )
 
     const updateCommentLambda = createLambda(
@@ -78,7 +81,7 @@ export class CommentsStack extends Stack {
       "UpdateCommentLambda",
       "../lambdas/updateComment",
       hotReloadBucket,
-      db_url,
+      props.db_url,
     )
 
     const api = new RestApi(this, "commentsapi", {

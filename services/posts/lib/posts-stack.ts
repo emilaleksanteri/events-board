@@ -9,7 +9,8 @@ import {
   LambdaIntegration,
 } from "aws-cdk-lib/aws-apigateway";
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
-import path = require('path');
+import * as path from "path"
+
 
 enum BaseUrlPaths {
   HEALTH = "healthcheck",
@@ -44,11 +45,14 @@ function createLambda(
   })
 }
 
-export class PostsStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
-    const db_url = process.env.DB_ADDRESS
-    if (!db_url) {
+interface PostsProps {
+  db_url?: string
+}
+
+export class Posts extends Construct {
+  constructor(scope: Construct, id: string, props: PostsProps) {
+    super(scope, id);
+    if (!props.db_url) {
       throw new Error("DB env var is not set")
     }
 
@@ -63,7 +67,7 @@ export class PostsStack extends Stack {
       "getPostsFunc",
       "../lambdas/getPosts",
       hotReloadBucket,
-      db_url,
+      props.db_url,
     )
 
     const lambdaCreate = createLambda(
@@ -71,7 +75,7 @@ export class PostsStack extends Stack {
       "createPostFunc",
       "../lambdas/postPost",
       hotReloadBucket,
-      db_url
+      props.db_url
     )
 
     const lambdaUpdate = createLambda(
@@ -79,7 +83,7 @@ export class PostsStack extends Stack {
       "updatePostFunc",
       "../lambdas/updatePost",
       hotReloadBucket,
-      db_url
+      props.db_url
     )
 
     const lambdaDelete = createLambda(
@@ -87,7 +91,7 @@ export class PostsStack extends Stack {
       "deletePostFunc",
       "../lambdas/deletePost",
       hotReloadBucket,
-      db_url
+      props.db_url
     )
 
     const api = new RestApi(this, "postsApi", {
