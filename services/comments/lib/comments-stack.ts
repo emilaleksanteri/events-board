@@ -17,6 +17,7 @@ enum BaseUrlPaths {
   CREATE_COMMENT = "create",
   COMMENTS = "comments",
   UPDATE_COMMENT = "update",
+  DELETE_COMMENT = "delete",
 }
 
 function createLambda(
@@ -84,6 +85,14 @@ export class Comments extends Construct {
       props.db_url,
     )
 
+    const deleteCommentLambda = createLambda(
+      this,
+      "DeleteCommentLambda",
+      "../lambdas/deleteComment",
+      hotReloadBucket,
+      props.db_url,
+    )
+
     const api = new RestApi(this, "commentsapi", {
       restApiName: "commentsapi",
       description: "API for comments",
@@ -121,6 +130,16 @@ export class Comments extends Construct {
 
     const updateHealth = update.addResource(BaseUrlPaths.HEALTH)
     updateHealth.addMethod("GET", updateCommentIntegration)
+
+    // COMMENT (DELETE)
+    const deleteCommentIntegration = new LambdaIntegration(deleteCommentLambda)
+    const remove = api.root.addResource(BaseUrlPaths.DELETE_COMMENT)
+
+    const deleteComment = remove.addResource(BaseUrlPaths.BY_ID)
+    deleteComment.addMethod("DELETE", deleteCommentIntegration)
+
+    const deleteHealth = remove.addResource(BaseUrlPaths.HEALTH)
+    deleteHealth.addMethod("GET", deleteCommentIntegration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayUrl", { value: api.url })

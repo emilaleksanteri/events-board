@@ -10,6 +10,7 @@ build/lambdas:
 	cd ./lambdas/postComment && make build && make zip
 	cd ./lambdas/getComment && make build && make zip
 	cd ./lambdas/updateComment && make build && make zip
+	cd ./lambdas/deleteComment && make build && make zip
 
 ## tidy/lambdas: go mod tidy for all lambdas
 .PHONY: tidy/lambdas
@@ -18,3 +19,4 @@ tidy/lambdas:
 	cd ./lambdas/postComment && go mod tidy
 	cd ./lambdas/getComment && go mod tidy
 	cd ./lambdas/updateComment && go mod tidy
+	cd ./lambdas/deleteComment && go mod tidy
