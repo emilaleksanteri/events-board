@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -17,7 +18,7 @@ type EventBridge struct {
 
 func NewEventBridge() *EventBridge {
 	session := session.Must(session.NewSession())
-	eb := eventbridge.New(session)
+	eb := eventbridge.New(session, aws.NewConfig().WithRegion(os.Getenv("REGION")))
 
 	return &EventBridge{
 		eb: eb,
@@ -34,7 +35,7 @@ type EventBridgeEvent struct {
 	Message        string `json:"message"`
 }
 
-func (app *App) handler(event events.APIGatewayWebsocketProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (app *App) handler(event events.APIGatewayWebsocketProxyRequest) (events.APIGatewayV2HTTPResponse, error) {
 	busName := os.Getenv("BUS_NAME")
 	d := EventBridgeEvent{
 		ConnectionId:   event.RequestContext.ConnectionID,
@@ -44,7 +45,7 @@ func (app *App) handler(event events.APIGatewayWebsocketProxyRequest) (events.AP
 
 	detail, err := json.Marshal(d)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return events.APIGatewayV2HTTPResponse{
 			Body:       err.Error(),
 			StatusCode: 500,
 		}, nil
@@ -52,22 +53,28 @@ func (app *App) handler(event events.APIGatewayWebsocketProxyRequest) (events.AP
 
 	entry := eventbridge.PutEventsRequestEntry{
 		Detail:       aws.String(string(detail)),
-		DetailType:   aws.String("notification"),
+		DetailType:   aws.String("NotificationReceived"),
 		EventBusName: aws.String(busName),
-		Source:       aws.String("notification"),
+		Source:       aws.String("notifications"),
 	}
 
-	_, err = app.eb.eb.PutEvents(&eventbridge.PutEventsInput{
+	res, err := app.eb.eb.PutEvents(&eventbridge.PutEventsInput{
 		Entries: []*eventbridge.PutEventsRequestEntry{
 			&entry,
 		},
 	})
 
-	return events.APIGatewayProxyResponse{
-		Body:       "OK",
+	if err != nil {
+		return events.APIGatewayV2HTTPResponse{
+			Body:       fmt.Sprintf("could not publish event: %s", err.Error()),
+			StatusCode: 200,
+		}, nil
+	}
+
+	return events.APIGatewayV2HTTPResponse{
+		Body:       fmt.Sprintf("%+v", res.GoString()),
 		StatusCode: 200,
 	}, nil
-
 }
 
 func main() {

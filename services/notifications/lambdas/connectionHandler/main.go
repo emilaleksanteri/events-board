@@ -27,14 +27,12 @@ func NewDymanoDbClient() *DynamoClient {
 }
 
 func (c *DynamoClient) PutConn(
-	event events.APIGatewayWebsocketProxyRequest,
-) events.APIGatewayProxyResponse {
+	ctx events.APIGatewayWebsocketProxyRequestContext) events.APIGatewayV2HTTPResponse {
 	tableName := os.Getenv("TABLE_NAME")
-	eventType := event.RequestContext.EventType
-	connId := event.RequestContext.ConnectionID
+	eventType := ctx.EventType
+	connId := ctx.ConnectionID
 
-	switch eventType {
-	case "CONNECT":
+	if eventType == "CONNECT" {
 		oneHourFromNow := time.Now().Add(1 * time.Hour)
 		item := &dynamodb.PutItemInput{
 			TableName: aws.String(tableName),
@@ -52,12 +50,13 @@ func (c *DynamoClient) PutConn(
 		}
 
 		c.db.PutItem(item)
-		return events.APIGatewayProxyResponse{
+		return events.APIGatewayV2HTTPResponse{
 			StatusCode: http.StatusOK,
-			Body:       "Connected.",
+			Body:       connId,
 		}
+	}
 
-	case "DISCONNECT":
+	if eventType == "DISCONNECT" {
 		item := &dynamodb.DeleteItemInput{
 			TableName: aws.String(tableName),
 			Key: map[string]*dynamodb.AttributeValue{
@@ -67,13 +66,13 @@ func (c *DynamoClient) PutConn(
 			},
 		}
 		c.db.DeleteItem(item)
-		return events.APIGatewayProxyResponse{
+		return events.APIGatewayV2HTTPResponse{
 			StatusCode: http.StatusOK,
 			Body:       "Disconnected.",
 		}
 	}
 
-	return events.APIGatewayProxyResponse{
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: http.StatusOK,
 		Body:       "Ok.",
 	}
@@ -84,9 +83,9 @@ type App struct {
 }
 
 func (app *App) handler(
-	event events.APIGatewayWebsocketProxyRequest,
-) (events.APIGatewayProxyResponse, error) {
-	return app.db.PutConn(event), nil
+	ctx events.APIGatewayWebsocketProxyRequestContext,
+) (events.APIGatewayV2HTTPResponse, error) {
+	return app.db.PutConn(ctx), nil
 }
 
 func main() {

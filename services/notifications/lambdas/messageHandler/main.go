@@ -33,7 +33,8 @@ type GatewayClient struct {
 
 func NewGatewayClient() *GatewayClient {
 	session := session.Must(session.NewSession())
-	gw := apigatewaymanagementapi.New(session)
+	endPoint := os.Getenv("ENDPOINT")
+	gw := apigatewaymanagementapi.New(session, aws.NewConfig().WithEndpoint(endPoint))
 
 	return &GatewayClient{
 		gw: gw,
@@ -56,7 +57,7 @@ func (app *App) getConnections(senderConnId, notificationId string) (*[]Notifica
 	allClients, err := app.db.db.Scan(&dynamodb.ScanInput{
 		TableName: aws.String(tableName),
 		FilterExpression: aws.String(
-			"connectionId <> :connectionId AND notificationId = :notificationId"),
+			"notificationId = :notificationId"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":connectionId": {
 				S: aws.String(senderConnId),
@@ -70,8 +71,7 @@ func (app *App) getConnections(senderConnId, notificationId string) (*[]Notifica
 	if err != nil {
 		return nil, err
 	}
-
-	rows := []NotificationRow{}
+	var rows []NotificationRow
 	err = dynamodbattribute.UnmarshalListOfMaps(allClients.Items, &rows)
 	return &rows, nil
 }
