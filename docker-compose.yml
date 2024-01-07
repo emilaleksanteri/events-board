@@ -19,6 +19,8 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - DB_ADDRESS=${DB_ADDRESS}
       - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN- }
+      - DISABLE_TRANSPARENT_ENDPOINT_INJECTION=1
+      - DEBUG=1
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack-pro"
       - "/var/run/docker.sock:/var/run/docker.sock"

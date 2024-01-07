@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -101,10 +102,14 @@ func (app *App) handler(
 			return err
 		}
 
-		app.gw.gw.PostToConnection(&apigatewaymanagementapi.PostToConnectionInput{
+		_, err = app.gw.gw.PostToConnection(&apigatewaymanagementapi.PostToConnectionInput{
 			ConnectionId: aws.String(conn.connectionId),
 			Data:         dataToSend,
 		})
+		if err != nil {
+			return errors.New("could not send a msg to a conn")
+		}
+
 		//}(conn)
 	}
 

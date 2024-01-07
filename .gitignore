@@ -8,3 +8,5 @@ volume
 .cdk.staging
 cdk.out
 .envrc
+*.zip
+*.exe

@@ -19,7 +19,7 @@ type DynamoClient struct {
 
 func NewDymanoDbClient() *DynamoClient {
 	session := session.Must(session.NewSession())
-	db := dynamodb.New(session)
+	db := dynamodb.New(session, aws.NewConfig().WithDisableSSL(true))
 
 	return &DynamoClient{
 		db: db,
@@ -27,11 +27,11 @@ func NewDymanoDbClient() *DynamoClient {
 }
 
 func (c *DynamoClient) PutConn(
-	ctx events.APIGatewayWebsocketProxyRequestContext) events.APIGatewayV2HTTPResponse {
+	event events.APIGatewayWebsocketProxyRequest,
+) events.APIGatewayV2HTTPResponse {
 	tableName := os.Getenv("TABLE_NAME")
-	eventType := ctx.EventType
-	connId := ctx.ConnectionID
-
+	connId := event.RequestContext.ConnectionID
+	eventType := event.RequestContext.EventType
 	if eventType == "CONNECT" {
 		oneHourFromNow := time.Now().Add(1 * time.Hour)
 		item := &dynamodb.PutItemInput{
@@ -49,7 +49,16 @@ func (c *DynamoClient) PutConn(
 			},
 		}
 
-		c.db.PutItem(item)
+		output, err := c.db.PutItem(item)
+		if err != nil {
+			fmt.Printf("Error: %s", err.Error())
+			return events.APIGatewayV2HTTPResponse{
+				StatusCode: http.StatusInternalServerError,
+				Body:       err.Error(),
+			}
+		}
+
+		fmt.Printf("Save conn %s:\n %+v", connId, output)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: http.StatusOK,
 			Body:       connId,
@@ -83,9 +92,9 @@ type App struct {
 }
 
 func (app *App) handler(
-	ctx events.APIGatewayWebsocketProxyRequestContext,
+	event events.APIGatewayWebsocketProxyRequest,
 ) (events.APIGatewayV2HTTPResponse, error) {
-	return app.db.PutConn(ctx), nil
+	return app.db.PutConn(event), nil
 }
 
 func main() {

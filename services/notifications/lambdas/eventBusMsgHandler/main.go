@@ -17,8 +17,11 @@ type EventBridge struct {
 }
 
 func NewEventBridge() *EventBridge {
-	session := session.Must(session.NewSession())
-	eb := eventbridge.New(session, aws.NewConfig().WithRegion(os.Getenv("REGION")))
+	session := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	// FIXME: take in env var to disable ssl, default should be with ssl true
+	eb := eventbridge.New(session, aws.NewConfig().WithDisableSSL(true))
 
 	return &EventBridge{
 		eb: eb,
@@ -46,21 +49,19 @@ func (app *App) handler(event events.APIGatewayWebsocketProxyRequest) (events.AP
 	detail, err := json.Marshal(d)
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{
-			Body:       err.Error(),
+			Body:       fmt.Sprintf("could not marshal event: %s", err.Error()),
 			StatusCode: 500,
 		}, nil
 	}
 
-	entry := eventbridge.PutEventsRequestEntry{
-		Detail:       aws.String(string(detail)),
-		DetailType:   aws.String("NotificationReceived"),
-		EventBusName: aws.String(busName),
-		Source:       aws.String("notifications"),
-	}
-
 	res, err := app.eb.eb.PutEvents(&eventbridge.PutEventsInput{
 		Entries: []*eventbridge.PutEventsRequestEntry{
-			&entry,
+			{
+				Detail:       aws.String(string(detail)),
+				DetailType:   aws.String("NotificationReceived"),
+				Source:       aws.String("notifications"),
+				EventBusName: aws.String(busName),
+			},
 		},
 	})
 

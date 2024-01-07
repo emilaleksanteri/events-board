@@ -11,7 +11,7 @@ import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3'
 import * as path from "path"
 import * as events from 'aws-cdk-lib/aws-events';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { EventBus, LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 
 type LambdaEnv = Record<string, string>
@@ -69,8 +69,24 @@ export class Notifications extends Construct {
 		})
 
 		const eventBus = new events.EventBus(this, "NotificationsEventBus", {
-			eventBusName: "notifications"
+			eventBusName: "notifications",
 		})
+
+		const lambdaRole = new Role(this, "LambdaRole", {
+			assumedBy: new ServicePrincipal("lambda.amazon.com"),
+		})
+
+		lambdaRole.addToPolicy(
+			new PolicyStatement({
+				actions: ["dynamodb:*"],
+				resources: ["arn:aws:synamodb:us-east-1::table/*"],
+			})
+		)
+		lambdaRole.addManagedPolicy(
+			ManagedPolicy.fromAwsManagedPolicyName(
+				"service-role/AWSLambdaBasicExecutionRole"
+			)
+		)
 
 		const connLambda = createLambda(
 			this,
@@ -86,14 +102,12 @@ export class Notifications extends Construct {
 			"RequestHandler",
 			"../lambdas/eventBusMsgHandler",
 			hotReloadBucket,
-			{ BUS_NAME: eventBus.eventBusName, REGION: props.region }
+			{
+				BUS_NAME: eventBus.eventBusName,
+				REGION: props.region,
+			}
 		)
-		reqLambda.addPermission("AllowInvoke", {
-			principal: new ServicePrincipal("events.amazonaws.com"),
-			sourceArn: eventBus.eventBusArn,
-			action: "lambda:InvokeFunction"
 
-		})
 		eventBus.grantPutEventsTo(reqLambda)
 
 		const api = new apigw2.WebSocketApi(this, "NotificationsApi", {
@@ -152,7 +166,7 @@ export class Notifications extends Construct {
 		const crossRegionalEventbusTargets = props.regionsToReplicate
 			.map((regionCode) => new EventBus(events.EventBus.fromEventBusArn(
 				this,
-				`WebsocketBlogBus-${regionCode}`,
+				`WebsocketNotificationBus-${regionCode}`,
 				`arn:aws:events:${regionCode}:${props.account}:event-bus/${eventBus.eventBusName}`,
 			), {
 				role: crossRegionEventRole,
