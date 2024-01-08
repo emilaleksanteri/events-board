@@ -19,7 +19,8 @@ type DynamoClient struct {
 
 func NewDymanoDbClient() *DynamoClient {
 	session := session.Must(session.NewSession())
-	db := dynamodb.New(session, aws.NewConfig().WithDisableSSL(true))
+	// TODO separate dev and prod configs
+	db := dynamodb.New(session, aws.NewConfig().WithRegion("us-east-1").WithEndpoint("http://localstack:4566"))
 
 	return &DynamoClient{
 		db: db,
@@ -33,6 +34,7 @@ func (c *DynamoClient) PutConn(
 	connId := event.RequestContext.ConnectionID
 	eventType := event.RequestContext.EventType
 	if eventType == "CONNECT" {
+		fmt.Printf("table name: %s\n", tableName)
 		oneHourFromNow := time.Now().Add(1 * time.Hour)
 		item := &dynamodb.PutItemInput{
 			TableName: aws.String(tableName),
@@ -49,16 +51,15 @@ func (c *DynamoClient) PutConn(
 			},
 		}
 
-		output, err := c.db.PutItem(item)
+		_, err := c.db.PutItem(item)
 		if err != nil {
-			fmt.Printf("Error: %s", err.Error())
+			fmt.Printf("Error bruh moment: %s\n\n", err.Error())
 			return events.APIGatewayV2HTTPResponse{
 				StatusCode: http.StatusInternalServerError,
 				Body:       err.Error(),
 			}
 		}
 
-		fmt.Printf("Save conn %s:\n %+v", connId, output)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: http.StatusOK,
 			Body:       connId,

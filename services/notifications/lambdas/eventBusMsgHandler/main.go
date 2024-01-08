@@ -17,11 +17,8 @@ type EventBridge struct {
 }
 
 func NewEventBridge() *EventBridge {
-	session := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	// FIXME: take in env var to disable ssl, default should be with ssl true
-	eb := eventbridge.New(session, aws.NewConfig().WithDisableSSL(true))
+	session := session.Must(session.NewSession())
+	eb := eventbridge.New(session, aws.NewConfig().WithRegion("us-east-1").WithEndpoint("http://localstack:4566"))
 
 	return &EventBridge{
 		eb: eb,
@@ -54,7 +51,7 @@ func (app *App) handler(event events.APIGatewayWebsocketProxyRequest) (events.AP
 		}, nil
 	}
 
-	res, err := app.eb.eb.PutEvents(&eventbridge.PutEventsInput{
+	_, err = app.eb.eb.PutEvents(&eventbridge.PutEventsInput{
 		Entries: []*eventbridge.PutEventsRequestEntry{
 			{
 				Detail:       aws.String(string(detail)),
@@ -73,7 +70,7 @@ func (app *App) handler(event events.APIGatewayWebsocketProxyRequest) (events.AP
 	}
 
 	return events.APIGatewayV2HTTPResponse{
-		Body:       fmt.Sprintf("%+v", res.GoString()),
+		Body:       fmt.Sprintf("event published"),
 		StatusCode: 200,
 	}, nil
 }

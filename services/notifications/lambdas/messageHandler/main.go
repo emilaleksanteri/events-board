@@ -2,7 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
+	//"errors"
+	"fmt"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigatewaymanagementapi"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	//"github.com/aws/aws-sdk-go/service/eventbridge"
 )
 
@@ -21,7 +23,7 @@ type DynamoClient struct {
 
 func NewDymanoDbClient() *DynamoClient {
 	session := session.Must(session.NewSession())
-	db := dynamodb.New(session)
+	db := dynamodb.New(session, aws.NewConfig().WithRegion("us-east-1").WithEndpoint("http://localstack:4566"))
 
 	return &DynamoClient{
 		db: db,
@@ -34,8 +36,8 @@ type GatewayClient struct {
 
 func NewGatewayClient() *GatewayClient {
 	session := session.Must(session.NewSession())
-	endPoint := os.Getenv("ENDPOINT")
-	gw := apigatewaymanagementapi.New(session, aws.NewConfig().WithEndpoint(endPoint))
+	//endPoint := os.Getenv("ENDPOINT")
+	gw := apigatewaymanagementapi.New(session, aws.NewConfig().WithRegion("us-east-1").WithEndpoint("http://localstack:4566"))
 
 	return &GatewayClient{
 		gw: gw,
@@ -48,32 +50,46 @@ type App struct {
 }
 
 type NotificationRow struct {
-	notificationId string
-	connectionId   string
-	ttl            int64
+	NotificationId string
+	ConnectionId   string
 }
 
 func (app *App) getConnections(senderConnId, notificationId string) (*[]NotificationRow, error) {
 	tableName := os.Getenv("TABLE_NAME")
+	filter := expression.Name("notificationId").Equal(expression.Value(notificationId))
+
+	toGet := expression.NamesList(
+		expression.Name("connectionId"),
+		expression.Name("notificationId"),
+	)
+
+	expr, err := expression.NewBuilder().WithFilter(filter).WithProjection(toGet).Build()
+	if err != nil {
+		fmt.Printf("\nGot error building expression: %s\n", err.Error())
+		return nil, err
+	}
+
 	allClients, err := app.db.db.Scan(&dynamodb.ScanInput{
-		TableName: aws.String(tableName),
-		FilterExpression: aws.String(
-			"notificationId = :notificationId"),
-		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":connectionId": {
-				S: aws.String(senderConnId),
-			},
-			":notificationId": {
-				S: aws.String(notificationId),
-			},
-		},
+		TableName:                 aws.String(tableName),
+		FilterExpression:          expr.Filter(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		ProjectionExpression:      expr.Projection(),
 	})
 
 	if err != nil {
+		fmt.Printf("\nGot error calling Scan: %s\n", err.Error())
 		return nil, err
 	}
+
 	var rows []NotificationRow
+
 	err = dynamodbattribute.UnmarshalListOfMaps(allClients.Items, &rows)
+	if err != nil {
+		fmt.Printf("\nGot error unmarshalling: %s\n", err.Error())
+		return nil, err
+	}
+
 	return &rows, nil
 }
 
@@ -88,28 +104,31 @@ func (app *App) handler(
 ) error {
 	var eventData EventBridgeEvent
 	err := json.Unmarshal(event.Detail, &eventData)
-
-	connId := "1" //event.RequestContext.ConnectionID
-	conns, err := app.getConnections(connId, "DEFAULT")
 	if err != nil {
+		fmt.Printf("\nCould not unmarshal event: %v\n", event.Detail)
 		return err
 	}
 
+	conns, err := app.getConnections(eventData.ConnectionId, eventData.NotificationId)
+	if err != nil {
+		fmt.Printf("\nCould not get connections: %v\n", eventData)
+		return err
+	}
 	for _, conn := range *conns {
 		//go func(conn NotificationRow) {
-		dataToSend, err := json.Marshal(eventData)
-		if err != nil {
-			return err
-		}
+		//dataToSend, err := json.Marshal(eventData)
+		//if err != nil {
+		//	return err
+		//}
+		fmt.Printf("sending data: %+v\n connId: %s\n", conn, conn.ConnectionId)
 
 		_, err = app.gw.gw.PostToConnection(&apigatewaymanagementapi.PostToConnectionInput{
-			ConnectionId: aws.String(conn.connectionId),
-			Data:         dataToSend,
+			ConnectionId: aws.String(conn.ConnectionId),
+			Data:         event.Detail,
 		})
 		if err != nil {
-			return errors.New("could not send a msg to a conn")
+			fmt.Printf("\nCould not send a msg to a conn: %s\n", err.Error())
 		}
-
 		//}(conn)
 	}
 

@@ -1,6 +1,6 @@
 "use strict"
 import {
-	CfnOutput, RemovalPolicy
+	CfnOutput, Duration, RemovalPolicy
 } from 'aws-cdk-lib';
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
@@ -35,6 +35,7 @@ function createLambda(
 		description: description ?? `Lambda function for ${funcName}`,
 		tracing: lambda.Tracing.ACTIVE,
 		environment: lambdaEnv,
+		timeout: Duration.seconds(120),
 	})
 }
 
@@ -60,8 +61,6 @@ export class Notifications extends Construct {
 				name: "notificationId",
 				type: AttributeType.STRING
 			},
-			removalPolicy: RemovalPolicy.DESTROY,
-			billingMode: BillingMode.PAY_PER_REQUEST,
 			sortKey: {
 				name: "connectionId",
 				type: AttributeType.STRING
@@ -71,22 +70,6 @@ export class Notifications extends Construct {
 		const eventBus = new events.EventBus(this, "NotificationsEventBus", {
 			eventBusName: "notifications",
 		})
-
-		const lambdaRole = new Role(this, "LambdaRole", {
-			assumedBy: new ServicePrincipal("lambda.amazon.com"),
-		})
-
-		lambdaRole.addToPolicy(
-			new PolicyStatement({
-				actions: ["dynamodb:*"],
-				resources: ["arn:aws:synamodb:us-east-1::table/*"],
-			})
-		)
-		lambdaRole.addManagedPolicy(
-			ManagedPolicy.fromAwsManagedPolicyName(
-				"service-role/AWSLambdaBasicExecutionRole"
-			)
-		)
 
 		const connLambda = createLambda(
 			this,
@@ -157,6 +140,7 @@ export class Notifications extends Construct {
 
 		processLambda.addToRolePolicy(allowConnectionManagementOnApiGatewayPolicy)
 
+		/**
 		const crossRegionEventRole = new Role(this, 'CrossRegionRole', {
 			inlinePolicies: {},
 			assumedBy: new ServicePrincipal('events.amazonaws.com'),
@@ -172,6 +156,7 @@ export class Notifications extends Construct {
 				role: crossRegionEventRole,
 			}));
 
+		*/
 		new events.Rule(this, 'ProcessRequest', {
 			eventBus,
 			enabled: true,
@@ -182,7 +167,6 @@ export class Notifications extends Construct {
 			},
 			targets: [
 				new LambdaFunction(processLambda),
-				...crossRegionalEventbusTargets
 			],
 		});
 
