@@ -8,16 +8,17 @@ export class PubSub extends Stack {
 	constructor(scope: Construct, id: string, props?: StackProps) {
 		super(scope, id, props);
 
-		const regionsToReplicate = ["us-east-1", "us-west-2", "eu-west-1"];
+		const regionsToReplicate = ["us-east-1", "us-west-2"];
 		const region = this.region
 		const account = this.account
 		const db_url = process.env.DB_ADDRESS;
+		const isProd = process.env.IS_PROD === "true";
 		new Posts(this, "PostsStack", { db_url: db_url });
 		new Comments(this, "CommentsStack", { db_url: db_url, });
 		new Notifications(
 			this,
 			"NotificationsStack",
-			{ regionsToReplicate, region, account }
+			{ regionsToReplicate, region, account, isProd }
 		);
 	}
 }

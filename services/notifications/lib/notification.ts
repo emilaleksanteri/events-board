@@ -1,6 +1,6 @@
 "use strict"
 import {
-	CfnOutput, Duration, RemovalPolicy
+	CfnOutput, Duration
 } from 'aws-cdk-lib';
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
@@ -10,8 +10,8 @@ import * as apigw2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3'
 import * as path from "path"
 import * as events from 'aws-cdk-lib/aws-events';
-import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb';
+import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { EventBus, LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 
 type LambdaEnv = Record<string, string>
@@ -43,6 +43,7 @@ interface NotifciationsProps {
 	regionsToReplicate: string[],
 	region: string,
 	account: string,
+	isProd: boolean,
 }
 
 export class Notifications extends Construct {
@@ -140,23 +141,26 @@ export class Notifications extends Construct {
 
 		processLambda.addToRolePolicy(allowConnectionManagementOnApiGatewayPolicy)
 
-		/**
-		const crossRegionEventRole = new Role(this, 'CrossRegionRole', {
-			inlinePolicies: {},
-			assumedBy: new ServicePrincipal('events.amazonaws.com'),
-		});
 
-		// Generate list of Event buses in other regions
-		const crossRegionalEventbusTargets = props.regionsToReplicate
-			.map((regionCode) => new EventBus(events.EventBus.fromEventBusArn(
-				this,
-				`WebsocketNotificationBus-${regionCode}`,
-				`arn:aws:events:${regionCode}:${props.account}:event-bus/${eventBus.eventBusName}`,
-			), {
-				role: crossRegionEventRole,
-			}));
+		let crossRegionalEventbusTargets: EventBus[] = []
+		if (props.isProd) {
+			const crossRegionEventRole = new Role(this, 'CrossRegionRole', {
+				inlinePolicies: {},
+				assumedBy: new ServicePrincipal('events.amazonaws.com'),
+			});
 
-		*/
+			// Generate list of Event buses in other regions
+			crossRegionalEventbusTargets = props.regionsToReplicate
+				.map((regionCode) =>
+					new EventBus(events.EventBus.fromEventBusArn(
+						this,
+						`WebsocketNotificationBus-${regionCode}`,
+						`arn:aws:events:${regionCode}:${props.account}:event-bus/${eventBus.eventBusName}`,
+					), {
+						role: crossRegionEventRole,
+					}));
+
+		}
 		new events.Rule(this, 'ProcessRequest', {
 			eventBus,
 			enabled: true,
@@ -167,6 +171,7 @@ export class Notifications extends Construct {
 			},
 			targets: [
 				new LambdaFunction(processLambda),
+				...crossRegionalEventbusTargets
 			],
 		});
 

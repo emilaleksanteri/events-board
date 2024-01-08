@@ -20,7 +20,10 @@ type DynamoClient struct {
 func NewDymanoDbClient() *DynamoClient {
 	session := session.Must(session.NewSession())
 	// TODO separate dev and prod configs
-	db := dynamodb.New(session, aws.NewConfig().WithRegion("us-east-1").WithEndpoint("http://localstack:4566"))
+	db := dynamodb.New(session, aws.NewConfig().
+		WithRegion("us-east-1").
+		WithEndpoint("http://localstack:4566"),
+	)
 
 	return &DynamoClient{
 		db: db,

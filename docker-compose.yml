@@ -21,6 +21,7 @@ services:
       - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN- }
       - DISABLE_TRANSPARENT_ENDPOINT_INJECTION=1
       - DEBUG=1
+      - IS_PROD="false"
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack-pro"
       - "/var/run/docker.sock:/var/run/docker.sock"
