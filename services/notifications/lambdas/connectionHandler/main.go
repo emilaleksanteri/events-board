@@ -73,9 +73,16 @@ func (c *DynamoClient) PutConn(
 				"connectionId": {
 					S: aws.String(connId),
 				},
+				"notificationId": {
+					S: aws.String("DEFAULT"),
+				},
 			},
 		}
-		c.db.DeleteItem(item)
+		_, err := c.db.DeleteItem(item)
+		if err != nil {
+			fmt.Printf("\nUnable to delete connectionId from dynamo:\n %s\n", err.Error())
+		}
+
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: http.StatusOK,
 			Body:       "Disconnected.",

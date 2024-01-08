@@ -115,21 +115,20 @@ func (app *App) handler(
 		return err
 	}
 	for _, conn := range *conns {
-		//go func(conn NotificationRow) {
-		//dataToSend, err := json.Marshal(eventData)
-		//if err != nil {
-		//	return err
-		//}
-		fmt.Printf("sending data: %+v\n connId: %s\n", conn, conn.ConnectionId)
+		connection := conn
+		if connection.ConnectionId != eventData.ConnectionId {
+			go func(conn NotificationRow) {
+				_, err = app.gw.gw.PostToConnection(
+					&apigatewaymanagementapi.PostToConnectionInput{
+						ConnectionId: aws.String(conn.ConnectionId),
+						Data:         event.Detail,
+					})
 
-		_, err = app.gw.gw.PostToConnection(&apigatewaymanagementapi.PostToConnectionInput{
-			ConnectionId: aws.String(conn.ConnectionId),
-			Data:         event.Detail,
-		})
-		if err != nil {
-			fmt.Printf("\nCould not send a msg to a conn: %s\n", err.Error())
+				if err != nil {
+					fmt.Printf("\nCould not send a msg to a conn: %s\n", err.Error())
+				}
+			}(connection)
 		}
-		//}(conn)
 	}
 
 	return nil
