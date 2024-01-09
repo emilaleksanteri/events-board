@@ -1,6 +1,6 @@
 create table if not exists friend_nodes (
     id bigserial primary key,
-    userId bigint not null
+    userId bigint not null references users(id) on delete cascade
 );
 
 create table if not exists friend_edges (

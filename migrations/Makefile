@@ -33,3 +33,9 @@ db/migrations/new:
 db/migrations/force:
 	@echo 'Forcing migration version ${version}'
 	migrate -path ./migrations -database=${DB} force ${version}
+
+## db/migrations/down version=$1: apply down db migrations to version
+.PHONY: db/migrations/down
+db/migrations/down: confirm
+	@echo 'Running down migrations...'
+	migrate -path ./migrations -database=${DB} down ${version}
