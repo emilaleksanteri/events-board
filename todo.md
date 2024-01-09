@@ -12,8 +12,14 @@
 - feed service for feed related stuff
     - get feed based on followers etc
 - notifications service for real time notification
-    - websocket api w api gateway, listens to event bridge
-    - separate gateway from once used by other services?
+    - add notification types -> push notification on post comment and post
+    - social graph to find who needs to be notified -> any node connected to the post user id will be notidied, how?:
+        - websocket sessions stored in dynamoDB, contains connection id and user id (only signed in users can have live)
+        - on event push include pushed id, search postgresdb for connected nodes, get their ids and filter from dynamo
+        - based on these ids, get their connectionID and push data to socket
+        
+        
+    - kinda links with this, followers social graph 
 - api for as api gateway
     - use api gateway to interact w services
     - non cold start gateway?

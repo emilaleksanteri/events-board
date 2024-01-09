@@ -28,3 +28,8 @@ db/migrations/new:
 	@echo 'Creating migration files for ${name}'
 	migrate create -seq -ext=.sql -dir=./migrations ${name}
 
+## db/migrations/force version=$1: force a db migration version
+.PHONY: db/migrations/force
+db/migrations/force:
+	@echo 'Forcing migration version ${version}'
+	migrate -path ./migrations -database=${DB} force ${version}
