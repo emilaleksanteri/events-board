@@ -6,7 +6,7 @@ help:
 ## build/lambdas: build all lambdas for api
 .PHONY: build/lambdas
 build/lambdas:
-	@echo "Building go app"
+	@echo "Building notifications lambdas..."
 	cd ./lambdas/connectionHandler && make build && make zip
 	cd ./lambdas/eventBusMsgHandler && make build && make zip
 	cd ./lambdas/messageHandler && make build && make zip

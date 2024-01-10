@@ -6,7 +6,7 @@ help:
 ## build/lambdas: build all lambdas for api
 .PHONY: build/lambdas
 build/lambdas:
-	@echo "Building go app"
+	@echo "Building comments go app"
 	cd ./lambdas/postComment && make build && make zip
 	cd ./lambdas/getComment && make build && make zip
 	cd ./lambdas/updateComment && make build && make zip

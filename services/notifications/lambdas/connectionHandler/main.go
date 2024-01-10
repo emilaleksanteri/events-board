@@ -34,10 +34,22 @@ func (c *DynamoClient) PutConn(
 	event events.APIGatewayWebsocketProxyRequest,
 ) events.APIGatewayV2HTTPResponse {
 	tableName := os.Getenv("TABLE_NAME")
+
+	// temporary hack to add userId to the connection
+	// once rest of logic is confirmed, use cookies from session auth
+	// and check that user has a session based on the cookies
+	connectionUserId, ok := event.Headers["x-user-id"]
+	if !ok {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       "Missing x-user-id header",
+		}
+	}
+
+	fmt.Printf("Connection user id: %s\n", connectionUserId)
 	connId := event.RequestContext.ConnectionID
 	eventType := event.RequestContext.EventType
 	if eventType == "CONNECT" {
-		fmt.Printf("table name: %s\n", tableName)
 		oneHourFromNow := time.Now().Add(1 * time.Hour)
 		item := &dynamodb.PutItemInput{
 			TableName: aws.String(tableName),
@@ -48,20 +60,21 @@ func (c *DynamoClient) PutConn(
 				"ttl": {
 					N: aws.String(fmt.Sprintf("%d", oneHourFromNow.Unix())),
 				},
-				"notificationId": {
-					S: aws.String("DEFAULT"),
+				"userId": {
+					N: aws.String(connectionUserId),
 				},
 			},
 		}
 
 		_, err := c.db.PutItem(item)
 		if err != nil {
-			fmt.Printf("Error bruh moment: %s\n\n", err.Error())
 			return events.APIGatewayV2HTTPResponse{
 				StatusCode: http.StatusInternalServerError,
 				Body:       err.Error(),
 			}
 		}
+
+		fmt.Printf("CONNECTED: %s with user %s\n", connId, connectionUserId)
 
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: http.StatusOK,
@@ -76,14 +89,18 @@ func (c *DynamoClient) PutConn(
 				"connectionId": {
 					S: aws.String(connId),
 				},
-				"notificationId": {
-					S: aws.String("DEFAULT"),
+				"userId": {
+					N: aws.String(connectionUserId),
 				},
 			},
 		}
 		_, err := c.db.DeleteItem(item)
 		if err != nil {
 			fmt.Printf("\nUnable to delete connectionId from dynamo:\n %s\n", err.Error())
+			return events.APIGatewayV2HTTPResponse{
+				StatusCode: http.StatusInternalServerError,
+				Body:       err.Error(),
+			}
 		}
 
 		return events.APIGatewayV2HTTPResponse{

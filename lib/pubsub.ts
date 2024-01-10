@@ -18,7 +18,7 @@ export class PubSub extends Stack {
 		new Notifications(
 			this,
 			"NotificationsStack",
-			{ regionsToReplicate, region, account, isProd }
+			{ regionsToReplicate, region, account, isProd, db_url }
 		);
 	}
 }

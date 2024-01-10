@@ -1,7 +1,7 @@
 build:
-	@echo 'Building posts...'
+	@echo 'Building get comment(s) lambda...'
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build  -o main
 
 zip:
-	@echo 'Zipping posts...'
+	@echo 'Zipping get comment(s)...'
 	zip -j main.zip main

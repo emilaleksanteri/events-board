@@ -44,11 +44,15 @@ interface NotifciationsProps {
 	region: string,
 	account: string,
 	isProd: boolean,
+	db_url?: string,
 }
 
 export class Notifications extends Construct {
 	constructor(scope: Construct, id: string, props: NotifciationsProps) {
 		super(scope, id);
+		if (!props.db_url) {
+			throw new Error("DB URL must be provided")
+		}
 
 		const hotReloadBucket = Bucket.fromBucketName(
 			this,
@@ -59,8 +63,8 @@ export class Notifications extends Construct {
 		const table = new Table(this, "NotificationsTable", {
 			tableName: "notifications",
 			partitionKey: {
-				name: "notificationId",
-				type: AttributeType.STRING
+				name: "userId",
+				type: AttributeType.NUMBER
 			},
 			sortKey: {
 				name: "connectionId",
@@ -136,7 +140,7 @@ export class Notifications extends Construct {
 			"ProcessHandler",
 			"../lambdas/messageHandler",
 			hotReloadBucket,
-			{ TABLE_NAME: table.tableName, ENDPOINT: wsStage.callbackUrl }
+			{ TABLE_NAME: table.tableName, DB_ADDRESS: props.db_url }
 		)
 
 		processLambda.addToRolePolicy(allowConnectionManagementOnApiGatewayPolicy)
