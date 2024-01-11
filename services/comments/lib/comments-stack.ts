@@ -1,14 +1,8 @@
-import {
-  CfnOutput, Stack, StackProps, Tags
-} from 'aws-cdk-lib';
-import * as lambda from "aws-cdk-lib/aws-lambda";
+import { CfnOutput, Tags } from 'aws-cdk-lib';
 import { Construct } from "constructs";
-
-import {
-  RestApi,
-  LambdaIntegration,
-} from "aws-cdk-lib/aws-apigateway";
-import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3'
+import { RestApi, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
+import { Bucket } from 'aws-cdk-lib/aws-s3'
+import { createLambda } from '../../../lib/lambda';
 import * as path from "path"
 
 enum BaseUrlPaths {
@@ -18,30 +12,6 @@ enum BaseUrlPaths {
   COMMENTS = "comments",
   UPDATE_COMMENT = "update",
   DELETE_COMMENT = "delete",
-}
-
-function createLambda(
-  th: Construct,
-  funcName: string,
-  pathStr: string,
-  bucket: IBucket,
-  db_url: string,
-  description?: string,
-): lambda.Function {
-  return new lambda.Function(th, funcName, {
-    code: lambda.Code.fromBucket(
-      bucket,
-      path.join(__dirname, pathStr)
-    ),
-    runtime: lambda.Runtime.GO_1_X,
-    handler: "main",
-    functionName: funcName,
-    description: description ?? `Lambda function for ${funcName}`,
-    tracing: lambda.Tracing.ACTIVE,
-    environment: {
-      DB_ADDRESS: db_url
-    }
-  })
 }
 
 interface CommentsProps {
@@ -64,33 +34,33 @@ export class Comments extends Construct {
     const postCommentLambda = createLambda(
       this,
       "PostCommentLambda",
-      "../lambdas/postComment",
+      path.join(__dirname, "../lambdas/postComment"),
       hotReloadBucket,
-      props.db_url,
+      { DB_ADDRESS: props.db_url },
     )
 
     const getCommentLambda = createLambda(
       this,
       "GetCommentLambda",
-      "../lambdas/getComment",
+      path.join(__dirname, "../lambdas/getComment"),
       hotReloadBucket,
-      props.db_url,
+      { DB_ADDRESS: props.db_url },
     )
 
     const updateCommentLambda = createLambda(
       this,
       "UpdateCommentLambda",
-      "../lambdas/updateComment",
+      path.join(__dirname, "../lambdas/updateComment"),
       hotReloadBucket,
-      props.db_url,
+      { DB_ADDRESS: props.db_url },
     )
 
     const deleteCommentLambda = createLambda(
       this,
       "DeleteCommentLambda",
-      "../lambdas/deleteComment",
+      path.join(__dirname, "../lambdas/deleteComment"),
       hotReloadBucket,
-      props.db_url,
+      { DB_ADDRESS: props.db_url },
     )
 
     const api = new RestApi(this, "commentsapi", {

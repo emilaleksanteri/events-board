@@ -1,16 +1,11 @@
-import {
-  CfnOutput, Tags
-} from 'aws-cdk-lib';
-import * as lambda from "aws-cdk-lib/aws-lambda";
+import { CfnOutput, Tags } from 'aws-cdk-lib';
 import { Construct } from "constructs";
-
-import {
-  RestApi,
-  LambdaIntegration,
-} from "aws-cdk-lib/aws-apigateway";
-import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
-import * as path from "path"
+import { RestApi, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
+import { Bucket } from 'aws-cdk-lib/aws-s3';
 import * as events from 'aws-cdk-lib/aws-events';
+import { createLambda } from '../../../lib/lambda';
+import * as path from "path"
+
 
 enum BaseUrlPaths {
   HEALTH = "healthcheck",
@@ -21,29 +16,6 @@ enum BaseUrlPaths {
   DELETE = "delete",
 }
 
-function createLambda(
-  th: Construct,
-  funcName: string,
-  pathStr: string,
-  bucket: IBucket,
-  db_url: string,
-  description?: string,
-): lambda.Function {
-  return new lambda.Function(th, funcName, {
-    code: lambda.Code.fromBucket(
-      bucket,
-      path.join(__dirname, pathStr)
-    ),
-    runtime: lambda.Runtime.GO_1_X,
-    handler: "main",
-    functionName: funcName,
-    description: description ?? `Lambda function for ${funcName}`,
-    tracing: lambda.Tracing.ACTIVE,
-    environment: {
-      DB_ADDRESS: db_url
-    }
-  })
-}
 
 interface PostsProps {
   db_url?: string
@@ -68,34 +40,35 @@ export class Posts extends Construct {
     const lambdaPosts = createLambda(
       this,
       "getPostsFunc",
-      "../lambdas/getPosts",
+      path.join(__dirname, "../lambdas/getPosts"),
       hotReloadBucket,
-      props.db_url,
+      { DB_ADDRESS: props.db_url },
     )
 
     const lambdaCreate = createLambda(
       this,
       "createPostFunc",
-      "../lambdas/postPost",
+      path.join(__dirname, "../lambdas/postPost"),
       hotReloadBucket,
-      props.db_url
+      { DB_ADDRESS: props.db_url, BUS_NAME: eventBus.eventBusName },
     )
     eventBus.grantPutEventsTo(lambdaCreate)
 
     const lambdaUpdate = createLambda(
       this,
       "updatePostFunc",
-      "../lambdas/updatePost",
+      path.join(__dirname, "../lambdas/updatePost"),
       hotReloadBucket,
-      props.db_url
+      { DB_ADDRESS: props.db_url },
     )
 
     const lambdaDelete = createLambda(
       this,
       "deletePostFunc",
-      "../lambdas/deletePost",
+      path.join(__dirname, "../lambdas/deletePost"),
       hotReloadBucket,
-      props.db_url
+      { DB_ADDRESS: props.db_url },
+
     )
 
     const api = new RestApi(this, "postsApi", {

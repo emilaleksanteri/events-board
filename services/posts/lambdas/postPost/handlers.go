@@ -65,5 +65,11 @@ func (app *app) createHandler(w http.ResponseWriter, r *http.Request) {
 	err = app.writeJSON(w, http.StatusCreated, envelope{"post": post}, headers)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.publishPost(post)
+	if err != nil {
+		fmt.Printf("Could not publish event for post %d: \n%v\n", post.Id, err)
 	}
 }

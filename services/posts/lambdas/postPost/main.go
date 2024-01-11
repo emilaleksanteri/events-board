@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"time"
 
@@ -30,6 +31,7 @@ func NewEventBridge() *eventbridge.EventBridge {
 
 func openDB() (*sql.DB, error) {
 	addr := os.Getenv("DB_ADDRESS")
+	fmt.Printf("\n\nDB_ADDRESS: %s\n\n", addr)
 	db, err := sql.Open("postgres", addr)
 	if err != nil {
 		return nil, err
@@ -57,10 +59,13 @@ func init() {
 		panic(err)
 	}
 
-	app := app{models: NewModels(db)}
+	app := app{models: NewModels(db), eb: NewEventBridge()}
 	r := chi.NewRouter()
-	r.Get("/create/healthcheck", app.healthcheckHandler)
-	r.Post("/create", app.createHandler)
+	r.Route("/create", func(r chi.Router) {
+		fmt.Printf("ROUTE HIT\n\n")
+		r.Post("/", app.createHandler)
+		r.Get("/healthcheck", app.healthcheckHandler)
+	})
 	r.NotFound(app.notFoundHandler)
 
 	chiLambda = chiadapter.New(r)

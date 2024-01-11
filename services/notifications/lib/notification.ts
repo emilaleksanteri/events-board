@@ -1,57 +1,30 @@
 "use strict"
-import {
-	CfnOutput, Duration
-} from 'aws-cdk-lib';
-import * as lambda from "aws-cdk-lib/aws-lambda";
+import { CfnOutput } from 'aws-cdk-lib';
 import { Construct } from "constructs";
-
 import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as apigw2 from 'aws-cdk-lib/aws-apigatewayv2';
-import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3'
-import * as path from "path"
+import { Bucket } from 'aws-cdk-lib/aws-s3'
 import * as events from 'aws-cdk-lib/aws-events';
 import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { EventBus, LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
-
-type LambdaEnv = Record<string, string>
-
-function createLambda(
-	th: Construct,
-	funcName: string,
-	pathStr: string,
-	bucket: IBucket,
-	lambdaEnv: LambdaEnv,
-	description?: string,
-): lambda.Function {
-	return new lambda.Function(th, funcName, {
-		code: lambda.Code.fromBucket(
-			bucket,
-			path.join(__dirname, pathStr)
-		),
-		runtime: lambda.Runtime.GO_1_X,
-		handler: "main",
-		functionName: funcName,
-		description: description ?? `Lambda function for ${funcName}`,
-		tracing: lambda.Tracing.ACTIVE,
-		environment: lambdaEnv,
-		timeout: Duration.seconds(120),
-	})
-}
+import { createLambda } from '../../../lib/lambda';
+import * as path from "path"
 
 interface NotifciationsProps {
 	regionsToReplicate: string[],
 	region: string,
 	account: string,
 	isProd: boolean,
-	db_url?: string,
 	eventBus: events.EventBus
+	db_url?: string,
 }
 
 export class Notifications extends Construct {
 	constructor(scope: Construct, id: string, props: NotifciationsProps) {
 		super(scope, id);
 		const { eventBus } = props
+
 		if (!props.db_url) {
 			throw new Error("DB URL must be provided")
 		}
@@ -77,7 +50,7 @@ export class Notifications extends Construct {
 		const connLambda = createLambda(
 			this,
 			"ConnectionHandler",
-			"../lambdas/connectionHandler",
+			path.join(__dirname, "../lambdas/connectionHandler"),
 			hotReloadBucket,
 			{ TABLE_NAME: table.tableName }
 		)
@@ -118,7 +91,7 @@ export class Notifications extends Construct {
 		const processLambda = createLambda(
 			this,
 			"ProcessHandler",
-			"../lambdas/messageHandler",
+			path.join(__dirname, "../lambdas/messageHandler"),
 			hotReloadBucket,
 			{ TABLE_NAME: table.tableName, DB_ADDRESS: props.db_url }
 		)

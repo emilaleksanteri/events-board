@@ -15,11 +15,9 @@ export class PubSub extends Stack {
 		const db_url = process.env.DB_ADDRESS;
 		const isProd = process.env.IS_PROD === "true";
 
-
 		const eventBus = new events.EventBus(this, "NotificationsEventBus", {
 			eventBusName: "notifications",
 		})
-
 
 		new Posts(this, "PostsStack", { db_url: db_url, eventBus });
 		new Comments(this, "CommentsStack", { db_url: db_url, });
