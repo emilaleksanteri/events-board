@@ -15,7 +15,7 @@ type NotificationRow struct {
 	UserId       int64
 }
 
-func (app *App) getConnections(senderConnId string, senderUserId int64) (*[]NotificationRow, error) {
+func (app *App) getConnections(senderUserId int64) (*[]NotificationRow, error) {
 	friendIds, err := app.models.SocialConns.GetFriendsForUser(senderUserId)
 	if err != nil {
 		fmt.Printf("Could not get friends for user: %d\n", senderUserId)

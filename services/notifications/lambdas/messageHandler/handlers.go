@@ -15,12 +15,11 @@ const (
 )
 
 type PostAddedEvent struct {
-	PostId       string    `json:"postId"`
-	UserId       int64     `json:"userId"`
-	EventType    string    `json:"eventType"`
-	Username     string    `json:"username"`
-	SentAt       time.Time `json:"sentAt"`
-	ConnectionId string    `json:"connectionId"`
+	PostId    int64     `json:"postId"`
+	UserId    int64     `json:"userId"`
+	EventType string    `json:"eventType"`
+	Username  string    `json:"username"`
+	CreatedAt time.Time `json:"sentAt"`
 }
 
 type Event struct {
@@ -49,7 +48,7 @@ func (app *App) handler(event events.CloudWatchEvent) error {
 			return err
 		}
 
-		conns, err = app.getConnections(eventData.ConnectionId, eventData.UserId)
+		conns, err = app.getConnections(eventData.UserId)
 		if err != nil {
 			fmt.Printf("Could not get connections: %v\n", eventData)
 			return err

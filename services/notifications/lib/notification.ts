@@ -45,11 +45,13 @@ interface NotifciationsProps {
 	account: string,
 	isProd: boolean,
 	db_url?: string,
+	eventBus: events.EventBus
 }
 
 export class Notifications extends Construct {
 	constructor(scope: Construct, id: string, props: NotifciationsProps) {
 		super(scope, id);
+		const { eventBus } = props
 		if (!props.db_url) {
 			throw new Error("DB URL must be provided")
 		}
@@ -72,10 +74,6 @@ export class Notifications extends Construct {
 			}
 		})
 
-		const eventBus = new events.EventBus(this, "NotificationsEventBus", {
-			eventBusName: "notifications",
-		})
-
 		const connLambda = createLambda(
 			this,
 			"ConnectionHandler",
@@ -85,18 +83,6 @@ export class Notifications extends Construct {
 		)
 		table.grantFullAccess(connLambda)
 
-		const reqLambda = createLambda(
-			this,
-			"RequestHandler",
-			"../lambdas/eventBusMsgHandler",
-			hotReloadBucket,
-			{
-				BUS_NAME: eventBus.eventBusName,
-				REGION: props.region,
-			}
-		)
-
-		eventBus.grantPutEventsTo(reqLambda)
 
 		const api = new apigw2.WebSocketApi(this, "NotificationsApi", {
 			apiName: "NotificationsApi",
@@ -113,12 +99,6 @@ export class Notifications extends Construct {
 					connLambda
 				)
 			},
-			defaultRouteOptions: {
-				integration: new WebSocketLambdaIntegration(
-					"defInt",
-					reqLambda
-				)
-			}
 		})
 
 		const wsStage = new apigw2.WebSocketStage(this, "NotificationsStage", {

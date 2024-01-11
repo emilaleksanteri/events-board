@@ -1,5 +1,5 @@
 import {
-  CfnOutput, Stack, StackProps, Tags
+  CfnOutput, Tags
 } from 'aws-cdk-lib';
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
@@ -10,7 +10,7 @@ import {
 } from "aws-cdk-lib/aws-apigateway";
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
 import * as path from "path"
-
+import * as events from 'aws-cdk-lib/aws-events';
 
 enum BaseUrlPaths {
   HEALTH = "healthcheck",
@@ -47,11 +47,14 @@ function createLambda(
 
 interface PostsProps {
   db_url?: string
+  eventBus: events.EventBus
 }
 
 export class Posts extends Construct {
   constructor(scope: Construct, id: string, props: PostsProps) {
     super(scope, id);
+    const { eventBus } = props
+
     if (!props.db_url) {
       throw new Error("DB env var is not set")
     }
@@ -77,6 +80,7 @@ export class Posts extends Construct {
       hotReloadBucket,
       props.db_url
     )
+    eventBus.grantPutEventsTo(lambdaCreate)
 
     const lambdaUpdate = createLambda(
       this,

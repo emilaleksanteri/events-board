@@ -36,7 +36,7 @@ func (app *app) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) createCommentHandler(w http.ResponseWriter, r *http.Request) {
-	tempUserId := int64(2)
+	tempUserId := int64(3)
 	var input struct {
 		Body   string `json:"body"`
 		PostId int64  `json:"post_id"`
@@ -85,7 +85,7 @@ func (app *app) createSubCommentHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tempUserId := int64(2)
+	tempUserId := int64(3)
 	var input struct {
 		Body   string `json:"body"`
 		PostId int64  `json:"post_id"`
