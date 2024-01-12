@@ -63,10 +63,12 @@ func (app *app) createCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.publishComment(comment)
-	if err != nil {
-		fmt.Printf("Error publishing comment event: %s\n", err.Error())
-	}
+	go func(comment *Comment) {
+		err = app.publishComment(comment)
+		if err != nil {
+			fmt.Printf("Error publishing comment event: %s\n", err.Error())
+		}
+	}(comment)
 }
 
 func (app *app) createSubCommentHandler(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +78,7 @@ func (app *app) createSubCommentHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tempUserId := int64(3)
+	tempUserId := int64(4)
 	var input struct {
 		Body   string `json:"body"`
 		PostId int64  `json:"post_id"`

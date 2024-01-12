@@ -39,7 +39,6 @@ type Event struct {
 }
 
 func (app *App) handler(event events.CloudWatchEvent) error {
-	fmt.Printf("\n\nHANDLER HIT\n\n")
 	var e Event
 
 	err := json.Unmarshal(event.Detail, &e)
@@ -47,8 +46,6 @@ func (app *App) handler(event events.CloudWatchEvent) error {
 		fmt.Printf("Event detail missing EventType!\n")
 		return err
 	}
-
-	fmt.Printf("Event: %v\n", e)
 
 	var conns *[]NotificationRow
 	switch e.EventType {

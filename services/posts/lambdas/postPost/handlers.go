@@ -68,8 +68,10 @@ func (app *app) createHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.publishPost(post)
-	if err != nil {
-		fmt.Printf("Could not publish event for post %d: \n%v\n", post.Id, err)
-	}
+	go func(post *Post) {
+		err = app.publishPost(post)
+		if err != nil {
+			fmt.Printf("Could not publish event for post %d: \n%v\n", post.Id, err)
+		}
+	}(post)
 }
