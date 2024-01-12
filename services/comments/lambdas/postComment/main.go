@@ -57,7 +57,7 @@ func init() {
 		panic(err)
 	}
 
-	app := app{models: NewModels(db)}
+	app := app{models: NewModels(db), eb: NewEventBridge()}
 	r := chi.NewRouter()
 	r.Route("/create", func(r chi.Router) {
 		r.Post("/", app.createCommentHandler)

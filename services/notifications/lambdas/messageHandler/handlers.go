@@ -74,7 +74,7 @@ func (app *App) handler(event events.CloudWatchEvent) error {
 			return err
 		}
 
-		conns, err = app.getConnectionsForPost(eventData.PostUserId)
+		conns, err = app.getPostAuthorConnection(eventData.PostUserId)
 		if err != nil {
 			fmt.Printf("Could not get connections: %v\n", eventData)
 			return err
