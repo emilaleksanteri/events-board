@@ -31,4 +31,4 @@
     - use api gateway to interact w services
     - non cold start gateway?
 
-
+- centralized logging service

@@ -62,24 +62,23 @@ type Comment struct {
 	User             *User      `json:"user"`
 }
 
-func (c *CommentModel) insertRootComment(comment *Comment, userId int64) error {
+func (c *CommentModel) get(id int64) (*Comment, error) {
 	query := `
-	with insert_comment as (
-		INSERT INTO comments (post_id, body, path, user_id)
-		VALUES ($1, $2, '0', $3)
-		RETURNING id, created_at, updated_at
-	) select insert_comment.id, insert_comment.created_at, insert_comment.updated_at,
-	users.id as usr_id, users.username, users.profile_picture from insert_comment
-	left join users on users.id = $3
+		select comments.id, comments.body, comments.created_at, comments.updated_at,
+		users.id, users.username, users.profile_picture
+		from comments
+		left join users on users.id = comments.user_id
+		where comments.id = $1
 	`
 
+	comment := &Comment{}
+	user := &User{}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var user User
-
-	err := c.DB.QueryRowContext(ctx, query, comment.PostId, comment.Body, userId).Scan(
+	err := c.DB.QueryRowContext(ctx, query, id).Scan(
 		&comment.Id,
+		&comment.Body,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
 		&user.sqlId,
@@ -88,49 +87,38 @@ func (c *CommentModel) insertRootComment(comment *Comment, userId int64) error {
 	)
 
 	if err != nil {
-		return err
+		if err == sql.ErrNoRows {
+			return nil, ErrRecordNotFound
+		}
+
+		return nil, err
 	}
 
 	user.parseSqlNulls()
-	comment.User = &user
+	comment.User = user
 
-	return nil
+	return comment, nil
 }
 
-func (c *CommentModel) insertSubComment(comment *Comment, userId, parentId int64) error {
+func (c *CommentModel) update(comment *Comment) error {
 	query := `
-	with inseet_comment as (
-		INSERT INTO comments (post_id, body, path, user_id)
-		VALUES ($1, $2, $3::text::ltree, $4)
-		RETURNING id, created_at, updated_at, path::text::bigint
-	) select inseet_comment.id, inseet_comment.created_at, inseet_comment.updated_at,
-	inseet_comment.path, users.id as usr_id, users.username, users.profile_picture from inseet_comment
-	left join users on users.id = $4
+		update comments
+		set body = $1, updated_at = $2
+		where id = $3
+		returning updated_at
 	`
-
-	args := []any{comment.PostId, comment.Body, parentId, userId}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var user User
-
-	err := c.DB.QueryRowContext(ctx, query, args...).Scan(
-		&comment.Id,
-		&comment.CreatedAt,
-		&comment.UpdatedAt,
-		&comment.ParentId,
-		&user.sqlId,
-		&user.sqlUsername,
-		&user.sqlProfilePicture,
-	)
-
+	err := c.DB.QueryRowContext(ctx, query, comment.Body, time.Now(), comment.Id).Scan(&comment.UpdatedAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return ErrRecordNotFound
+		}
+
 		return err
 	}
-
-	user.parseSqlNulls()
-	comment.User = &user
 
 	return nil
 }

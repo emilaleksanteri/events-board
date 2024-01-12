@@ -7,16 +7,6 @@ import (
 	"time"
 )
 
-type Models struct {
-	SocialConns SocialConnsModel
-}
-
-func NewModels(db *sql.DB) Models {
-	return Models{
-		SocialConns: SocialConnsModel{DB: db},
-	}
-}
-
 type SocialConnsModel struct {
 	DB *sql.DB
 }
