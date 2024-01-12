@@ -21,7 +21,7 @@ func (app *app) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) createCommentHandler(w http.ResponseWriter, r *http.Request) {
-	tempUserId := int64(3)
+	tempUserId := int64(4)
 	var input struct {
 		Body   string `json:"body"`
 		PostId int64  `json:"post_id"`
@@ -60,6 +60,12 @@ func (app *app) createCommentHandler(w http.ResponseWriter, r *http.Request) {
 	err = app.writeJSON(w, http.StatusCreated, envelope{"comment": comment}, headers)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.publishComment(comment)
+	if err != nil {
+		fmt.Printf("Error publishing comment event: %s\n", err.Error())
 	}
 }
 

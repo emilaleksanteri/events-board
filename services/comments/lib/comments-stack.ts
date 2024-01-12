@@ -4,6 +4,7 @@ import { RestApi, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
 import { Bucket } from 'aws-cdk-lib/aws-s3'
 import { createLambda } from '../../../lib/lambda';
 import * as path from "path"
+import * as events from 'aws-cdk-lib/aws-events';
 
 enum BaseUrlPaths {
   HEALTH = "healthcheck",
@@ -16,11 +17,14 @@ enum BaseUrlPaths {
 
 interface CommentsProps {
   db_url?: string
+  eventBus: events.EventBus
 }
 
 export class Comments extends Construct {
   constructor(scope: Construct, id: string, props: CommentsProps) {
     super(scope, id);
+    const { eventBus } = props
+
     if (!props.db_url) {
       throw new Error("DB env var is not set")
     }
@@ -36,8 +40,9 @@ export class Comments extends Construct {
       "PostCommentLambda",
       path.join(__dirname, "../lambdas/postComment"),
       hotReloadBucket,
-      { DB_ADDRESS: props.db_url },
+      { DB_ADDRESS: props.db_url, BUS_NAME: eventBus.eventBusName },
     )
+    eventBus.grantPutEventsTo(postCommentLambda)
 
     const getCommentLambda = createLambda(
       this,

@@ -8,6 +8,9 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/awslabs/aws-lambda-go-api-proxy/chi"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -17,6 +20,17 @@ var chiLambda *chiadapter.ChiLambda
 
 type app struct {
 	models Models
+	eb     *eventbridge.EventBridge
+}
+
+func NewEventBridge() *eventbridge.EventBridge {
+	session := session.Must(session.NewSession())
+	eb := eventbridge.New(session, aws.NewConfig().
+		WithRegion("us-east-1").
+		WithEndpoint("http://localstack:4566"),
+	)
+
+	return eb
 }
 
 func openDB() (*sql.DB, error) {

@@ -46,7 +46,6 @@ func (c *DynamoClient) PutConn(
 		}
 	}
 
-	fmt.Printf("Connection user id: %s\n", connectionUserId)
 	connId := event.RequestContext.ConnectionID
 	eventType := event.RequestContext.EventType
 	if eventType == "CONNECT" {
@@ -74,8 +73,6 @@ func (c *DynamoClient) PutConn(
 			}
 		}
 
-		fmt.Printf("CONNECTED: %s with user %s\n", connId, connectionUserId)
-
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: http.StatusOK,
 			Body:       connId,
@@ -96,7 +93,7 @@ func (c *DynamoClient) PutConn(
 		}
 		_, err := c.db.DeleteItem(item)
 		if err != nil {
-			fmt.Printf("\nUnable to delete connectionId from dynamo:\n %s\n", err.Error())
+			fmt.Printf("Unable to delete connectionId from dynamo:\n %s\n", err.Error())
 			return events.APIGatewayV2HTTPResponse{
 				StatusCode: http.StatusInternalServerError,
 				Body:       err.Error(),
