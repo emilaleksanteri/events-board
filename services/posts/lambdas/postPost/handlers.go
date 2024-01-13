@@ -59,6 +59,13 @@ func (app *app) createHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go func(post *Post) {
+		err = app.publishPost(post)
+		if err != nil {
+			fmt.Printf("Could not publish event for post %d: \n%v\n", post.Id, err)
+		}
+	}(post)
+
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/posts/%d", post.Id))
 
@@ -67,11 +74,4 @@ func (app *app) createHandler(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
-
-	go func(post *Post) {
-		err = app.publishPost(post)
-		if err != nil {
-			fmt.Printf("Could not publish event for post %d: \n%v\n", post.Id, err)
-		}
-	}(post)
 }

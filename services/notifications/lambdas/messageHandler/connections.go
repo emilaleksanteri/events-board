@@ -70,7 +70,7 @@ func (app *App) getConnectionsForPost(senderUserId int64) (*[]NotificationRow, e
 	return &rows, nil
 }
 
-func (app *App) getPostAuthorConnection(authorId int64) (*[]NotificationRow, error) {
+func (app *App) getAuthorConnection(authorId int64) (*[]NotificationRow, error) {
 	filter := expression.Name("userId").Equal(expression.Value(authorId))
 
 	toGet := expression.NamesList(

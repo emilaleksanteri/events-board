@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	POST_ADDED_EVENT    = "PostAdded"
-	COMMENT_ADDED_EVENT = "CommentAdded"
+	POST_ADDED_EVENT        = "PostAdded"
+	SUB_COMMENT_ADDED_EVENT = "SubCommentAdded"
+	COMMENT_ADDED_EVENT     = "CommentAdded"
 )
 
 type PostAddedEvent struct {
@@ -32,6 +33,18 @@ type CommentAddedEvent struct {
 	CommentCreatedAt   time.Time `json:"commentCreatedAt"`
 	CommentBodyPreview string    `json:"commentBody"`
 	EventType          string    `json:"eventType"`
+}
+
+type SubCommentAddedEvent struct {
+	PostId                   int64     `json:"postId"`
+	ParentCommentId          int64     `json:"parentCommentId"`
+	ChildCommentId           int64     `json:"childCommentId"`
+	ParentCommentUserId      int64     `json:"parentCommentUserId"`
+	ChildCommentUserId       int64     `json:"childCommentUserId"`
+	ChildCommentUserUsername string    `json:"childCommentUserUsername"`
+	ChildCommentCreatedAt    time.Time `json:"childCommentCreatedAt"`
+	ChildCommentBodyPreview  string    `json:"childCommentBody"`
+	EventType                string    `json:"eventType"`
 }
 
 type Event struct {
@@ -71,7 +84,21 @@ func (app *App) handler(event events.CloudWatchEvent) error {
 			return err
 		}
 
-		conns, err = app.getPostAuthorConnection(eventData.PostUserId)
+		conns, err = app.getAuthorConnection(eventData.PostUserId)
+		if err != nil {
+			fmt.Printf("Could not get connections: %v\n", eventData)
+			return err
+		}
+
+	case SUB_COMMENT_ADDED_EVENT:
+		var eventData SubCommentAddedEvent
+		err = json.Unmarshal(event.Detail, &eventData)
+		if err != nil {
+			fmt.Printf("Could not unmarshal event: %v\n", event.Detail)
+			return err
+		}
+
+		conns, err = app.getAuthorConnection(eventData.ParentCommentUserId)
 		if err != nil {
 			fmt.Printf("Could not get connections: %v\n", eventData)
 			return err

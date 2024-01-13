@@ -134,3 +134,22 @@ func (c *CommentModel) insertSubComment(comment *Comment, userId, parentId int64
 
 	return nil
 }
+
+func (c *CommentModel) getParentCommentUserId(parentId int64) (int64, error) {
+	query := `
+	select user_id from comments where id = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var userId int64
+
+	err := c.DB.QueryRowContext(ctx, query, parentId).Scan(&userId)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return userId, nil
+}

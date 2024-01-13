@@ -18,25 +18,24 @@ type Post struct {
 	UserId    int64     `json:"user_id"`
 }
 
-// returns Post struct with just post id and user_id fields
-func (p *PostModel) GetPostWithUser(postId int64) (*Post, error) {
+func (p *PostModel) GetPostUserId(postId int64) (int64, error) {
 	query := `
-		select id, user_id from posts where id = $1
+		select user_id from posts where id = $1
 	`
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var post Post
-	err := p.DB.QueryRowContext(ctx, query, postId).Scan(&post.Id, &post.UserId)
+	var userId int64
+	err := p.DB.QueryRowContext(ctx, query, postId).Scan(&userId)
 
 	if err != nil {
 		switch {
 		case err == sql.ErrNoRows:
-			return nil, ErrRecordNotFound
+			return 0, ErrRecordNotFound
 		default:
-			return nil, err
+			return 0, err
 		}
 	}
 
-	return &post, nil
+	return userId, nil
 }

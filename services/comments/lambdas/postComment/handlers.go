@@ -54,6 +54,13 @@ func (app *app) createCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go func(comment *Comment) {
+		err = app.publishComment(comment)
+		if err != nil {
+			fmt.Printf("Error publishing comment event: %s\n", err.Error())
+		}
+	}(comment)
+
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/comments/%d", comment.Id))
 
@@ -62,13 +69,6 @@ func (app *app) createCommentHandler(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
-
-	go func(comment *Comment) {
-		err = app.publishComment(comment)
-		if err != nil {
-			fmt.Printf("Error publishing comment event: %s\n", err.Error())
-		}
-	}(comment)
 }
 
 func (app *app) createSubCommentHandler(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +78,7 @@ func (app *app) createSubCommentHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tempUserId := int64(4)
+	tempUserId := int64(5)
 	var input struct {
 		Body   string `json:"body"`
 		PostId int64  `json:"post_id"`
@@ -110,6 +110,13 @@ func (app *app) createSubCommentHandler(w http.ResponseWriter, r *http.Request) 
 		app.serverErrorResponse(w, r, err)
 		return
 	}
+
+	go func(comment *Comment) {
+		err := app.publishChildComment(comment)
+		if err != nil {
+			fmt.Printf("Error publishing comment event: %s\n", err.Error())
+		}
+	}(comment)
 
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/comments/%d", comment.Id))
