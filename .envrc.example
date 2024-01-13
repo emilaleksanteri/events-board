@@ -1,0 +1,5 @@
+## any postgres db address
+export DB_ADDRESS=""
+
+## localstack auth token if using pro version
+export LOCALSTACK_AUTH_TOKEN=""
