@@ -31,7 +31,6 @@ func NewEventBridge() *eventbridge.EventBridge {
 
 func openDB() (*sql.DB, error) {
 	addr := os.Getenv("DB_ADDRESS")
-	fmt.Printf("\n\nDB_ADDRESS: %s\n\n", addr)
 	db, err := sql.Open("postgres", addr)
 	if err != nil {
 		return nil, err

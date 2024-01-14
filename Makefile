@@ -49,6 +49,7 @@ build/lambdas:
 	cd ./services/posts && make build/lambdas
 	cd ./services/comments && make build/lambdas
 	cd ./services/notifications && make build/lambdas
+	cd ./services/likes && make build/lambdas
 ## tidy/lambdas: go mod tidy for all lambdas
 .PHONY: tidy/lambdas
 tidy/lambdas:
@@ -56,3 +57,4 @@ tidy/lambdas:
 	cd ./services/posts && make tidy/lambdas
 	cd ./services/comments && make tidy/lambdas
 	cd ./services/notifications && make tidy/lambdas
+	cd ./services/likes && make tidy/lambdas
