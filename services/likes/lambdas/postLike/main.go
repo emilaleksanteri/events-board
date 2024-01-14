@@ -5,4 +5,6 @@ func init() {
 	// init
 }
 
-func main() {}
+func main() {
+	// main
+}
