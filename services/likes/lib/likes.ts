@@ -8,17 +8,19 @@ import * as path from "path"
 
 
 enum LikeRoute {
-	POST_LIKE = "like/post/{id}",
-	COMMENT_LIKE = "like/comment/{id}",
+	BASE = "like",
+	POST = "post",
+	COMMENT = "comment",
+	ID = "{id}",
 }
 
-interface PostsProps {
+interface LikesProps {
 	db_url?: string
 	eventBus: events.EventBus
 }
 
-export class Posts extends Construct {
-	constructor(scope: Construct, id: string, props: PostsProps) {
+export class Likes extends Construct {
+	constructor(scope: Construct, id: string, props: LikesProps) {
 		super(scope, id);
 		const { eventBus } = props
 
@@ -42,18 +44,26 @@ export class Posts extends Construct {
 		eventBus.grantPutEventsTo(postLikes)
 
 
-		const api = new RestApi(this, "likesApi", {
-			restApiName: "likesApi",
+		const api = new RestApi(this, "likesapi", {
+			restApiName: "likesapi",
 			description: "API for likes",
 		})
-		Tags.of(api).add("_custom_id_", "likesApi")
+		Tags.of(api).add("_custom_id_", "likesapi")
 
 		const likeCreateIntegration = new LambdaIntegration(postLikes)
 
-		const postLike = api.root.addResource(LikeRoute.POST_LIKE)
-		postLike.addMethod("POST", likeCreateIntegration)
+		const base = api.root.addResource(LikeRoute.BASE)
+		const posts = base.addResource(LikeRoute.POST)
+		const post = posts.addResource(LikeRoute.ID)
 
-		const commentLike = api.root.addResource(LikeRoute.COMMENT_LIKE)
-		commentLike.addMethod("POST", likeCreateIntegration)
+		post.addMethod("POST", likeCreateIntegration)
+
+		const comments = base.addResource(LikeRoute.COMMENT)
+		const comment = comments.addResource(LikeRoute.ID)
+		comment.addMethod("POST", likeCreateIntegration)
+
+		new CfnOutput(this, "GatewayId", { value: api.restApiId })
+		new CfnOutput(this, "GatewayUrl", { value: api.url })
+		new CfnOutput(this, "GatewayEndPoints", { value: "\n" + api.methods.join("\n") })
 	}
 }

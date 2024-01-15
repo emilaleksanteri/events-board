@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"time"
 
@@ -30,6 +31,7 @@ func NewEventBridge() *eventbridge.EventBridge {
 
 func openDB() (*sql.DB, error) {
 	addr := os.Getenv("DB_ADDRESS")
+	fmt.Printf("db address: %s\n", addr)
 	db, err := sql.Open("postgres", addr)
 	if err != nil {
 		return nil, err

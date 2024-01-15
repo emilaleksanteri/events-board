@@ -3,6 +3,7 @@ import { Construct } from "constructs";
 import { Comments } from "../services/comments/lib/comments-stack";
 import { Posts } from "../services/posts/lib/posts-stack";
 import { Notifications } from "../services/notifications/lib/notification";
+import { Likes } from "../services/likes/lib/likes";
 import * as events from 'aws-cdk-lib/aws-events';
 
 export class PubSub extends Stack {
@@ -26,5 +27,6 @@ export class PubSub extends Stack {
 			"NotificationsStack",
 			{ regionsToReplicate, region, account, isProd, db_url, eventBus }
 		);
+		new Likes(this, "LikesStack", { db_url: db_url, eventBus });
 	}
 }
