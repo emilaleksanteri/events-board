@@ -10,7 +10,7 @@ type CommentModel struct {
 	DB *sql.DB
 }
 
-func (c *CommentModel) updateCommentLikes(commentId int64) error {
+func (c *CommentModel) updateCommentLikes(commentId int64) (int, error) {
 	query := `
 		update comments set total_likes = total_likes + 1
 		where id = $1
@@ -23,8 +23,8 @@ func (c *CommentModel) updateCommentLikes(commentId int64) error {
 
 	err := c.DB.QueryRowContext(ctx, query, commentId).Scan(&likes)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return likes, nil
 }

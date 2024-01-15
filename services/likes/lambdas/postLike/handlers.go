@@ -46,14 +46,25 @@ func (app *app) likePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func(postLike *PostLike) {
-		err := app.models.Post.updatePostLikes(postLike.Id)
+	new_likes, err := app.models.Post.updatePostLikes(postLike.Id)
+	if err != nil {
+		fmt.Printf("failed to update post with like\n")
+		err := app.models.Like.undoPostLike(postLike)
 		if err != nil {
-			fmt.Printf("failed to update post with like\n")
+			fmt.Printf("failed to undo post like, something has gone wrong!!!\n")
 		}
-	}(postLike)
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"post_like": postLike}, nil)
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(
+		w,
+		http.StatusCreated,
+		envelope{"post_like": postLike, "total_likes": new_likes},
+		nil,
+	)
+
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -84,14 +95,25 @@ func (app *app) likeCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func(commentId int64) {
-		err := app.models.Comment.updateCommentLikes(commentId)
+	new_likes, err := app.models.Comment.updateCommentLikes(commentId)
+	if err != nil {
+		fmt.Printf("failed to update comment with like\n")
+		err := app.models.Like.undoCommentLike(commentLike)
 		if err != nil {
-			fmt.Printf("failed to update comment with like\n")
+			fmt.Printf("failed to undo comment like, something has gone wrong!!!\n")
 		}
-	}(commentId)
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"comment_like": commentLike}, nil)
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(
+		w,
+		http.StatusCreated,
+		envelope{"comment_like": commentLike, "total_likes": new_likes},
+		nil,
+	)
+
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return

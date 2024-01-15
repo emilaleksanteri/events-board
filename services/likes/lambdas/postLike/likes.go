@@ -49,6 +49,23 @@ func (l *LikeModel) likePost(postLike *PostLike) error {
 	return nil
 }
 
+func (l *LikeModel) undoPostLike(postLike *PostLike) error {
+	query := `
+		delete from post_likes
+		where id = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := l.DB.ExecContext(ctx, query, postLike.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (l *LikeModel) likeComment(commentLike *CommentLike) error {
 	query := `
 		insert into comment_likes (comment_id, user_id)
@@ -68,6 +85,23 @@ func (l *LikeModel) likeComment(commentLike *CommentLike) error {
 		default:
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (l *LikeModel) undoCommentLike(commentLike *CommentLike) error {
+	query := `
+		delete from comment_likes
+		where id = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := l.DB.ExecContext(ctx, query, commentLike.Id)
+	if err != nil {
+		return err
 	}
 
 	return nil
