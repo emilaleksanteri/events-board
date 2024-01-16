@@ -64,7 +64,7 @@ func init() {
 	r.Route("/like", func(r chi.Router) {
 		r.Post("/post/{id}", app.likePostHandler)
 		r.Post("/comment/{id}", app.likeCommentHandler)
-		r.Get("/healthcheck", app.healthcheckHandler)
+		r.Get("/create/healthcheck", app.healthcheckHandler)
 	})
 
 	r.NotFound(app.notFoundHandler)
