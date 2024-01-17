@@ -12,6 +12,9 @@ enum LikeRoute {
 	POST = "post",
 	COMMENT = "comment",
 	ID = "{id}",
+	HEALTHCHECK = "healthcheck",
+	GET = "get",
+	CREATE = "create",
 }
 
 interface LikesProps {
@@ -43,6 +46,13 @@ export class Likes extends Construct {
 		)
 		eventBus.grantPutEventsTo(postLikes)
 
+		const getLikes = createLambda(
+			this,
+			"getLikes",
+			path.join(__dirname, "../lambdas/getLikes"),
+			hotReloadBucket,
+			{ DB_ADDRESS: props.db_url },
+		)
 
 		const api = new RestApi(this, "likesapi", {
 			restApiName: "likesapi",
@@ -50,17 +60,30 @@ export class Likes extends Construct {
 		})
 		Tags.of(api).add("_custom_id_", "likesapi")
 
-		const likeCreateIntegration = new LambdaIntegration(postLikes)
-
+		// /like/post/{id}
+		// /like/comment/{id}
 		const base = api.root.addResource(LikeRoute.BASE)
 		const posts = base.addResource(LikeRoute.POST)
 		const post = posts.addResource(LikeRoute.ID)
-
-		post.addMethod("POST", likeCreateIntegration)
-
 		const comments = base.addResource(LikeRoute.COMMENT)
 		const comment = comments.addResource(LikeRoute.ID)
+
+		const create = base.addResource(LikeRoute.CREATE)
+		const healthcheckCreate = create.addResource(LikeRoute.HEALTHCHECK)
+
+		const getRoute = base.addResource(LikeRoute.GET)
+		const healthcheckGet = getRoute.addResource(LikeRoute.HEALTHCHECK)
+
+		const likeCreateIntegration = new LambdaIntegration(postLikes)
+		healthcheckCreate.addMethod("GET", likeCreateIntegration)
+		post.addMethod("POST", likeCreateIntegration)
 		comment.addMethod("POST", likeCreateIntegration)
+
+		const likeGetIntegration = new LambdaIntegration(getLikes)
+		healthcheckGet.addMethod("GET", likeGetIntegration)
+		post.addMethod("GET", likeGetIntegration)
+		comment.addMethod("GET", likeGetIntegration)
+
 
 		new CfnOutput(this, "GatewayId", { value: api.restApiId })
 		new CfnOutput(this, "GatewayUrl", { value: api.url })

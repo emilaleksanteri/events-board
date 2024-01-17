@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"os"
 	"time"
 
@@ -18,7 +17,6 @@ var chiLambda *chiadapter.ChiLambda
 
 func openDB() (*sql.DB, error) {
 	addr := os.Getenv("DB_ADDRESS")
-	fmt.Printf("db address: %s\n", addr)
 	db, err := sql.Open("postgres", addr)
 	if err != nil {
 		return nil, err
@@ -48,6 +46,9 @@ func init() {
 	app := app{models: NewModels(db)}
 	r := chi.NewRouter()
 	r.Route("/like", func(r chi.Router) {
+		r.Get("/get/healthcheck", app.healthcheckHandler)
+		r.Get("/post/{id}", app.postLikesHandler)
+		r.Get("/comment/{id}", app.commentLikesHandler)
 	})
 
 	r.NotFound(app.notFoundHandler)

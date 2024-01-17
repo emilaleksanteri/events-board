@@ -46,7 +46,7 @@ func (app *app) likePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	new_likes, err := app.models.Post.updatePostLikes(postLike.Id)
+	new_likes, err := app.models.Post.updatePostLikes(postId)
 	if err != nil {
 		fmt.Printf("failed to update post with like\n")
 		err := app.models.Like.undoPostLike(postLike)

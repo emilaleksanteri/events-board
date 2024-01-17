@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"strconv"
 )
 
 type envelope map[string]any
@@ -28,6 +30,20 @@ func (app *app) writeJSON(
 	w.WriteHeader(status)
 	w.Write(js)
 	return nil
+}
+
+func (app *app) getIntParam(qs url.Values, key string, defaultValue int) int {
+	s := qs.Get(key)
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultValue
+	}
+
+	return i
 }
 
 func (app *app) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
