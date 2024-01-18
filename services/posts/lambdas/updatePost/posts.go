@@ -20,20 +20,13 @@ type Post struct {
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	User      *User     `json:"user"`
+	User      User      `json:"user"`
 }
 
 type User struct {
-	Id                int64          `json:"id"`
-	Email             string         `json:"email"`
-	Name              string         `json:"name"`
-	ProfilePicture    string         `json:"profile_picture"`
-	Username          string         `json:"username"`
-	sqlID             sql.NullInt64  `json:"-"`
-	sqlEmail          sql.NullString `json:"-"`
-	sqlName           sql.NullString `json:"-"`
-	sqlProfilePicture sql.NullString `json:"-"`
-	sqlUsername       sql.NullString `json:"-"`
+	Id             int64  `json:"id"`
+	ProfilePicture string `json:"profile_picture"`
+	Username       string `json:"username"`
 }
 
 func (p *PostModel) Update(post *Post) error {
@@ -44,11 +37,10 @@ func (p *PostModel) Update(post *Post) error {
 	returning updated_at
 	`
 
-	args := []interface{}{post.Id, post.Body}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := p.DB.QueryRowContext(ctx, query, args...).Scan(&post.UpdatedAt)
+	err := p.DB.QueryRowContext(ctx, query, post.Id, post.Body).Scan(&post.UpdatedAt)
 	if err != nil {
 		switch {
 		case err == sql.ErrNoRows:
@@ -94,6 +86,6 @@ func (p *PostModel) Get(id int64) (*Post, error) {
 		}
 	}
 
-	post.User = &postUser
+	post.User = postUser
 	return &post, nil
 }

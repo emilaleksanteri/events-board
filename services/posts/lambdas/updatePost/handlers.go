@@ -39,7 +39,12 @@ func (app *app) updatePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Body == "" {
-		app.errorResponse(w, r, http.StatusBadRequest, "invalid body")
+		app.errorResponse(
+			w,
+			r,
+			http.StatusBadRequest,
+			"invalid body, needs to be min 1 character",
+		)
 		return
 	}
 
@@ -81,4 +86,3 @@ func (app *app) updatePostHandler(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, err)
 	}
 }
-
