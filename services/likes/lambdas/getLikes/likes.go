@@ -90,13 +90,13 @@ func (p *LikeModel) getPostLikes(postId int64, filter *Filter) (*PostLikesReturn
 		var pl PostLike
 		var u User
 		err := rows.Scan(
-			pl.Id,
-			pl.PostId,
-			pl.UserId,
-			pl.Created_at,
-			u.Id,
-			u.Username,
-			u.ProfilePicture,
+			&pl.Id,
+			&pl.PostId,
+			&pl.UserId,
+			&pl.Created_at,
+			&u.Id,
+			&u.Username,
+			&u.ProfilePicture,
 			&totalCount,
 		)
 
@@ -153,13 +153,13 @@ func (p *LikeModel) getCommentLikes(commentId int64, filter *Filter) (*CommentLi
 		var cl CommentLike
 		var u User
 		err := rows.Scan(
-			cl.Id,
-			cl.CommentId,
-			cl.UserId,
-			cl.Created_at,
-			u.Id,
-			u.Username,
-			u.ProfilePicture,
+			&cl.Id,
+			&cl.CommentId,
+			&cl.UserId,
+			&cl.Created_at,
+			&u.Id,
+			&u.Username,
+			&u.ProfilePicture,
 			&totalCount,
 		)
 
