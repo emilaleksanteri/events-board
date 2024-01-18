@@ -114,8 +114,8 @@ export class Posts extends Construct {
     const deletePost = deleteResource.addResource(BaseUrlPaths.BY_ID)
     deletePost.addMethod("DELETE", deleteIntegration)
 
-    const deleteHealth = deleteResource.addResource(BaseUrlPaths.HEALTH)
-    deleteHealth.addMethod("GET", deleteIntegration)
+    const healthcheckDeleteLambda = deleteResource.addResource(BaseUrlPaths.HEALTH)
+    healthcheckDeleteLambda.addMethod("GET", deleteIntegration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayUrl", { value: api.url })

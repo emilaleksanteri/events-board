@@ -113,8 +113,8 @@ export class Comments extends Construct {
     const deleteComment = remove.addResource(BaseUrlPaths.BY_ID)
     deleteComment.addMethod("DELETE", deleteCommentIntegration)
 
-    const deleteHealth = remove.addResource(BaseUrlPaths.HEALTH)
-    deleteHealth.addMethod("GET", deleteCommentIntegration)
+    const healthcheckDeleteLambda = remove.addResource(BaseUrlPaths.HEALTH)
+    healthcheckDeleteLambda.addMethod("GET", deleteCommentIntegration)
 
     new CfnOutput(this, "GatewayId", { value: api.restApiId })
     new CfnOutput(this, "GatewayUrl", { value: api.url })

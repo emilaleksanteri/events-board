@@ -15,7 +15,7 @@ type PostLike struct {
 	PostId     int64     `json:"post_id"`
 	UserId     int64     `json:"user_id"`
 	Created_at time.Time `json:"created_at"`
-	User       *User     `json:"user"`
+	User       User      `json:"user"`
 }
 
 type CommentLike struct {
@@ -23,30 +23,13 @@ type CommentLike struct {
 	CommentId  int64     `json:"comment_id"`
 	UserId     int64     `json:"user_id"`
 	Created_at time.Time `json:"created_at"`
-	User       *User     `json:"user"`
+	User       User      `json:"user"`
 }
 
 type User struct {
-	Id                int64          `json:"id"`
-	ProfilePicture    string         `json:"profile_picture"`
-	Username          string         `json:"username"`
-	sqlID             sql.NullInt64  `json:"-"`
-	sqlProfilePicture sql.NullString `json:"-"`
-	sqlUsername       sql.NullString `json:"-"`
-}
-
-func (u *User) parseSqlNulls() {
-	if u.sqlID.Valid {
-		u.Id = u.sqlID.Int64
-	}
-
-	if u.sqlProfilePicture.Valid {
-		u.ProfilePicture = u.sqlProfilePicture.String
-	}
-
-	if u.sqlUsername.Valid {
-		u.Username = u.sqlUsername.String
-	}
+	Id             int64  `json:"id"`
+	ProfilePicture string `json:"profile_picture"`
+	Username       string `json:"username"`
 }
 
 type Filter struct {
@@ -59,7 +42,7 @@ type Metadata struct {
 	LeftCount  int `json:"left_count"`
 }
 
-func calculateMetadata(totalCount int, filter *Filter) *Metadata {
+func calculateMetadata(totalCount int, filter *Filter) Metadata {
 	m := Metadata{}
 	m.TotalCount = totalCount
 
@@ -70,12 +53,12 @@ func calculateMetadata(totalCount int, filter *Filter) *Metadata {
 
 	m.LeftCount = leftCount
 
-	return &m
+	return m
 }
 
 type PostLikesReturn struct {
-	Likes    *[]PostLike `json:"likes"`
-	Metadata *Metadata   `json:"metadata"`
+	Likes    []PostLike `json:"likes"`
+	Metadata Metadata   `json:"metadata"`
 }
 
 // TODO the get queries could be combined, at least some parts
@@ -95,25 +78,25 @@ func (p *LikeModel) getPostLikes(postId int64, filter *Filter) (*PostLikesReturn
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []interface{}{postId, filter.take, filter.skip}
-	rows, err := p.DB.QueryContext(ctx, query, args...)
+	rows, err := p.DB.QueryContext(ctx, query, postId, filter.take, filter.skip)
 	if err != nil {
 		return nil, err
 	}
 
 	postLikes := []PostLike{}
 	totalCount := 0
+	defer rows.Close()
 	for rows.Next() {
 		var pl PostLike
 		var u User
 		err := rows.Scan(
-			&pl.Id,
-			&pl.PostId,
-			&pl.UserId,
-			&pl.Created_at,
-			&u.sqlID,
-			&u.sqlUsername,
-			&u.sqlProfilePicture,
+			pl.Id,
+			pl.PostId,
+			pl.UserId,
+			pl.Created_at,
+			u.Id,
+			u.Username,
+			u.ProfilePicture,
 			&totalCount,
 		)
 
@@ -121,11 +104,7 @@ func (p *LikeModel) getPostLikes(postId int64, filter *Filter) (*PostLikesReturn
 			return nil, err
 		}
 
-		u.parseSqlNulls()
-		if u.Id != 0 {
-			pl.User = &u
-		}
-
+		pl.User = u
 		postLikes = append(postLikes, pl)
 	}
 
@@ -134,7 +113,7 @@ func (p *LikeModel) getPostLikes(postId int64, filter *Filter) (*PostLikesReturn
 	}
 
 	LikesReturn := PostLikesReturn{
-		Likes:    &postLikes,
+		Likes:    postLikes,
 		Metadata: calculateMetadata(totalCount, filter),
 	}
 
@@ -142,8 +121,8 @@ func (p *LikeModel) getPostLikes(postId int64, filter *Filter) (*PostLikesReturn
 }
 
 type CommentLikesReturn struct {
-	Likes    *[]CommentLike `json:"likes"`
-	Metadata *Metadata      `json:"metadata"`
+	Likes    []CommentLike `json:"likes"`
+	Metadata Metadata      `json:"metadata"`
 }
 
 func (p *LikeModel) getCommentLikes(commentId int64, filter *Filter) (*CommentLikesReturn, error) {
@@ -161,11 +140,12 @@ func (p *LikeModel) getCommentLikes(commentId int64, filter *Filter) (*CommentLi
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []interface{}{commentId, filter.take, filter.skip}
-	rows, err := p.DB.QueryContext(ctx, query, args...)
+	rows, err := p.DB.QueryContext(ctx, query, commentId, filter.take, filter.skip)
 	if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
 
 	commentLikes := []CommentLike{}
 	totalCount := 0
@@ -173,13 +153,13 @@ func (p *LikeModel) getCommentLikes(commentId int64, filter *Filter) (*CommentLi
 		var cl CommentLike
 		var u User
 		err := rows.Scan(
-			&cl.Id,
-			&cl.CommentId,
-			&cl.UserId,
-			&cl.Created_at,
-			&u.sqlID,
-			&u.sqlUsername,
-			&u.sqlProfilePicture,
+			cl.Id,
+			cl.CommentId,
+			cl.UserId,
+			cl.Created_at,
+			u.Id,
+			u.Username,
+			u.ProfilePicture,
 			&totalCount,
 		)
 
@@ -187,11 +167,7 @@ func (p *LikeModel) getCommentLikes(commentId int64, filter *Filter) (*CommentLi
 			return nil, err
 		}
 
-		u.parseSqlNulls()
-		if u.Id != 0 {
-			cl.User = &u
-		}
-
+		cl.User = u
 		commentLikes = append(commentLikes, cl)
 	}
 
@@ -200,7 +176,7 @@ func (p *LikeModel) getCommentLikes(commentId int64, filter *Filter) (*CommentLi
 	}
 
 	LikesReturn := CommentLikesReturn{
-		Likes:    &commentLikes,
+		Likes:    commentLikes,
 		Metadata: calculateMetadata(totalCount, filter),
 	}
 
