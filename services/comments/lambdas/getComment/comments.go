@@ -95,8 +95,8 @@ func (c *CommentModel) getComment(commentId int64, take, offset int) (*Comment, 
 	WITH main_comment as (
 		SELECT comments.id, comments.post_id, comments.body, comments.created_at, 
 		comments.updated_at, comments.path,
-		(select count(*) from comments 
-		where path = id::text::ltree) as num_of_sub_comments, 
+		(select count(*) from comments as c
+		where path = comments.id::text::ltree) as num_of_sub_comments, 
 		users.id as comment_user_id, users.username as comment_user_name,
 		users.profile_picture as comment_user_profile_picture
 		FROM comments
@@ -107,8 +107,8 @@ func (c *CommentModel) getComment(commentId int64, take, offset int) (*Comment, 
 	sub_comments as (
 		SELECT comments.id, comments.post_id, comments.body, comments.created_at, 
 		comments.updated_at, comments.path,
-		(select count(*) from comments 
-		where path = id::text::ltree) as num_of_sub_comments, 
+		(select count(*) from comments as c
+		where path = comments.id::text::ltree) as num_of_sub_comments, 
 		users.id as sub_user_id, users.username as sub_username,
 		users.profile_picture as sub_profile_picture
 		FROM comments
