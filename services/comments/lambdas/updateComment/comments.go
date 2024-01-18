@@ -16,63 +16,35 @@ type CommentModel struct {
 }
 
 type User struct {
-	Id                int64          `json:"id"`
-	Email             string         `json:"email"`
-	Name              string         `json:"name"`
-	ProfilePicture    string         `json:"profile_picture"`
-	Username          string         `json:"username"`
-	sqlId             sql.NullInt64  `json:"-"`
-	sqlEmail          sql.NullString `json:"-"`
-	sqlName           sql.NullString `json:"-"`
-	sqlProfilePicture sql.NullString `json:"-"`
-	sqlUsername       sql.NullString `json:"-"`
-}
-
-func (u *User) parseSqlNulls() {
-	if u.sqlId.Valid {
-		u.Id = u.sqlId.Int64
-	}
-
-	if u.sqlEmail.Valid {
-		u.Email = u.sqlEmail.String
-	}
-
-	if u.sqlName.Valid {
-		u.Name = u.sqlName.String
-	}
-
-	if u.sqlProfilePicture.Valid {
-		u.ProfilePicture = u.sqlProfilePicture.String
-	}
-
-	if u.sqlUsername.Valid {
-		u.Username = u.sqlUsername.String
-	}
+	Id             int64  `json:"id"`
+	ProfilePicture string `json:"profile_picture"`
+	Username       string `json:"username"`
 }
 
 type Comment struct {
-	Id               int64      `json:"id"`
-	PostId           int64      `json:"post_id"`
-	SubComments      []*Comment `json:"sub_comments"`
-	Body             string     `json:"body"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	NumOfSubComments int        `json:"num_of_sub_comments"`
-	ParentId         int64      `json:"parent_id"`
-	User             *User      `json:"user"`
+	Id               int64     `json:"id"`
+	PostId           int64     `json:"post_id"`
+	SubComments      []Comment `json:"sub_comments"`
+	Body             string    `json:"body"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	NumOfSubComments int       `json:"num_of_sub_comments"`
+	ParentId         int64     `json:"parent_id"`
+	User             User      `json:"user"`
 }
 
-func (c *CommentModel) get(id int64) (*Comment, error) {
+func (c *CommentModel) get(id int64) (Comment, error) {
 	query := `
 		select comments.id, comments.body, comments.created_at, comments.updated_at,
-		users.id, users.username, users.profile_picture
+		comments.post_id, comments.path, users.id, 
+		users.username, users.profile_picture
 		from comments
 		left join users on users.id = comments.user_id
 		where comments.id = $1
 	`
 
-	comment := &Comment{}
-	user := &User{}
+	comment := Comment{}
+	user := User{}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -81,20 +53,22 @@ func (c *CommentModel) get(id int64) (*Comment, error) {
 		&comment.Body,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
-		&user.sqlId,
-		&user.sqlUsername,
-		&user.sqlProfilePicture,
+		&comment.PostId,
+		&comment.ParentId,
+		&user.Id,
+		&user.Username,
+		&user.ProfilePicture,
 	)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrRecordNotFound
+			return comment, ErrRecordNotFound
 		}
 
-		return nil, err
+		return comment, err
 	}
 
-	user.parseSqlNulls()
+	comment.SubComments = []Comment{}
 	comment.User = user
 
 	return comment, nil

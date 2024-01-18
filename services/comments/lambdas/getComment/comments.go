@@ -17,80 +17,24 @@ type CommentModel struct {
 }
 
 type User struct {
-	Id                int64          `json:"id"`
-	Email             string         `json:"email"`
-	Name              string         `json:"name"`
-	ProfilePicture    string         `json:"profile_picture"`
-	Username          string         `json:"username"`
-	sqlId             sql.NullInt64  `json:"-"`
-	sqlEmail          sql.NullString `json:"-"`
-	sqlName           sql.NullString `json:"-"`
-	sqlProfilePicture sql.NullString `json:"-"`
-	sqlUsername       sql.NullString `json:"-"`
-}
-
-func (u *User) parseSqlNulls() {
-	if u.sqlId.Valid {
-		u.Id = u.sqlId.Int64
-	}
-
-	if u.sqlEmail.Valid {
-		u.Email = u.sqlEmail.String
-	}
-
-	if u.sqlName.Valid {
-		u.Name = u.sqlName.String
-	}
-
-	if u.sqlProfilePicture.Valid {
-		u.ProfilePicture = u.sqlProfilePicture.String
-	}
-
-	if u.sqlUsername.Valid {
-		u.Username = u.sqlUsername.String
-	}
+	Id             int64  `json:"id"`
+	ProfilePicture string `json:"profile_picture"`
+	Username       string `json:"username"`
 }
 
 type Comment struct {
-	Id               int64          `json:"id"`
-	PostId           int64          `json:"post_id"`
-	SubComments      []*Comment     `json:"sub_comments"`
-	Body             string         `json:"body"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
-	NumOfSubComments int            `json:"num_of_sub_comments"`
-	ParentId         int64          `json:"parent_id"`
-	User             *User          `json:"user"`
-	sqlId            sql.NullInt64  `json:"-"`
-	sqlPostId        sql.NullInt64  `json:"-"`
-	sqlBody          sql.NullString `json:"-"`
-	sqlCreatedAt     sql.NullTime   `json:"-"`
-	sqlUpdatedAt     sql.NullTime   `json:"-"`
+	Id               int64     `json:"id"`
+	PostId           int64     `json:"post_id"`
+	SubComments      []Comment `json:"sub_comments"`
+	Body             string    `json:"body"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	NumOfSubComments int       `json:"num_of_sub_comments"`
+	ParentId         int64     `json:"parent_id"`
+	User             User      `json:"user"`
 }
 
-func (c *Comment) parseSqlNulls() {
-	if c.sqlId.Valid {
-		c.Id = c.sqlId.Int64
-	}
-
-	if c.sqlPostId.Valid {
-		c.PostId = c.sqlPostId.Int64
-	}
-
-	if c.sqlBody.Valid {
-		c.Body = c.sqlBody.String
-	}
-
-	if c.sqlCreatedAt.Valid {
-		c.CreatedAt = c.sqlCreatedAt.Time
-	}
-
-	if c.sqlUpdatedAt.Valid {
-		c.UpdatedAt = c.sqlUpdatedAt.Time
-	}
-}
-
-func (c *CommentModel) getComment(commentId int64, take, offset int) (*Comment, error) {
+func (c *CommentModel) getComment(commentId int64, take, offset int) (Comment, error) {
 	query := `
 	WITH main_comment as (
 		SELECT comments.id, comments.post_id, comments.body, comments.created_at, 
@@ -123,71 +67,71 @@ func (c *CommentModel) getComment(commentId int64, take, offset int) (*Comment, 
 	UNION ALL
 	SELECT * FROM sub_comments
 	`
+	comment := Comment{}
+	comments := []Comment{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	args := []any{commentId, take, offset}
-	rows, err := c.DB.QueryContext(ctx, query, args...)
+
+	rows, err := c.DB.QueryContext(ctx, query, commentId, take, offset)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
+			return comment, ErrRecordNotFound
 		default:
-			return nil, err
+			return comment, err
 		}
 	}
 
 	defer rows.Close()
-	var comment *Comment
-	var comments []*Comment
 
 	for rows.Next() {
 		tempComment := Comment{}
-		tempParentId := ""
-		numSubComments := 0
 		user := User{}
 
+		tempParentId := ""
+		numSubComments := 0
+
 		err = rows.Scan(
-			&tempComment.sqlId,
-			&tempComment.sqlPostId,
-			&tempComment.sqlBody,
-			&tempComment.sqlCreatedAt,
-			&tempComment.sqlUpdatedAt,
+			&tempComment.Id,
+			&tempComment.PostId,
+			&tempComment.Body,
+			&tempComment.CreatedAt,
+			&tempComment.UpdatedAt,
 			&tempParentId,
 			&numSubComments,
-			&user.sqlId,
-			&user.sqlUsername,
-			&user.sqlProfilePicture,
+			&user.Id,
+			&user.Username,
+			&user.ProfilePicture,
 		)
 
 		if err != nil {
-			return nil, err
+			return comment, err
 		}
 
-		user.parseSqlNulls()
-		tempComment.parseSqlNulls()
 		tempParentIdInt, err := strconv.ParseInt(tempParentId, 10, 64)
 		if err != nil {
-			return nil, err
+			return comment, err
 		}
 
 		tempComment.ParentId = tempParentIdInt
 		tempComment.NumOfSubComments = numSubComments
-		tempComment.User = &user
+		tempComment.User = user
 
 		if tempComment.Id != commentId {
-			comments = append(comments, &tempComment)
+			tempComment.SubComments = []Comment{}
+			comments = append(comments, tempComment)
 		} else {
-			comment = &tempComment
+			comment = tempComment
 		}
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return comment, err
 	}
 
-	if comment == nil {
-		return nil, ErrRecordNotFound
+	if comment.Id == 0 {
+		return comment, ErrRecordNotFound
 	}
 
 	comment.SubComments = comments

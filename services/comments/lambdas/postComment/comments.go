@@ -16,50 +16,21 @@ type CommentModel struct {
 }
 
 type User struct {
-	Id                int64          `json:"id"`
-	Email             string         `json:"email"`
-	Name              string         `json:"name"`
-	ProfilePicture    string         `json:"profile_picture"`
-	Username          string         `json:"username"`
-	sqlId             sql.NullInt64  `json:"-"`
-	sqlEmail          sql.NullString `json:"-"`
-	sqlName           sql.NullString `json:"-"`
-	sqlProfilePicture sql.NullString `json:"-"`
-	sqlUsername       sql.NullString `json:"-"`
-}
-
-func (u *User) parseSqlNulls() {
-	if u.sqlId.Valid {
-		u.Id = u.sqlId.Int64
-	}
-
-	if u.sqlEmail.Valid {
-		u.Email = u.sqlEmail.String
-	}
-
-	if u.sqlName.Valid {
-		u.Name = u.sqlName.String
-	}
-
-	if u.sqlProfilePicture.Valid {
-		u.ProfilePicture = u.sqlProfilePicture.String
-	}
-
-	if u.sqlUsername.Valid {
-		u.Username = u.sqlUsername.String
-	}
+	Id             int64  `json:"id"`
+	ProfilePicture string `json:"profile_picture"`
+	Username       string `json:"username"`
 }
 
 type Comment struct {
-	Id               int64      `json:"id"`
-	PostId           int64      `json:"post_id"`
-	SubComments      []*Comment `json:"sub_comments"`
-	Body             string     `json:"body"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	NumOfSubComments int        `json:"num_of_sub_comments"`
-	ParentId         int64      `json:"parent_id"`
-	User             *User      `json:"user"`
+	Id               int64     `json:"id"`
+	PostId           int64     `json:"post_id"`
+	SubComments      []Comment `json:"sub_comments"`
+	Body             string    `json:"body"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	NumOfSubComments int       `json:"num_of_sub_comments"`
+	ParentId         int64     `json:"parent_id"`
+	User             User      `json:"user"`
 }
 
 func (c *CommentModel) insertRootComment(comment *Comment, userId int64) error {
@@ -82,17 +53,17 @@ func (c *CommentModel) insertRootComment(comment *Comment, userId int64) error {
 		&comment.Id,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
-		&user.sqlId,
-		&user.sqlUsername,
-		&user.sqlProfilePicture,
+		&user.Id,
+		&user.Username,
+		&user.ProfilePicture,
 	)
 
 	if err != nil {
 		return err
 	}
 
-	user.parseSqlNulls()
-	comment.User = &user
+	comment.SubComments = []Comment{}
+	comment.User = user
 
 	return nil
 }
@@ -108,29 +79,34 @@ func (c *CommentModel) insertSubComment(comment *Comment, userId, parentId int64
 	left join users on users.id = $4
 	`
 
-	args := []any{comment.PostId, comment.Body, parentId, userId}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
 
-	err := c.DB.QueryRowContext(ctx, query, args...).Scan(
+	err := c.DB.QueryRowContext(
+		ctx,
+		query,
+		comment.PostId,
+		comment.Body,
+		parentId,
+		userId,
+	).Scan(
 		&comment.Id,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
 		&comment.ParentId,
-		&user.sqlId,
-		&user.sqlUsername,
-		&user.sqlProfilePicture,
+		&user.Id,
+		&user.Username,
+		&user.ProfilePicture,
 	)
 
 	if err != nil {
 		return err
 	}
 
-	user.parseSqlNulls()
-	comment.User = &user
+	comment.SubComments = []Comment{}
+	comment.User = user
 
 	return nil
 }

@@ -269,6 +269,7 @@ func (p *PostModel) Get(id int64, take, offset int) (Post, error) {
 		if comment.Id != 0 {
 			comment.NumOfSubComments = numOfSubComments
 			comment.User = commentUser
+			comment.SubComments = []Comment{}
 			comments = append(comments, comment)
 		}
 	}

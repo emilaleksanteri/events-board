@@ -41,7 +41,7 @@ func (app *app) updateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	comment.Body = input.Body
-	err = app.models.Comments.update(comment)
+	err = app.models.Comments.update(&comment)
 	if err != nil {
 		switch err {
 		case ErrRecordNotFound:
