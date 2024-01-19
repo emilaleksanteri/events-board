@@ -15,6 +15,7 @@ enum LikeRoute {
 	HEALTHCHECK = "healthcheck",
 	GET = "get",
 	CREATE = "create",
+	DELETE = "delete",
 }
 
 interface LikesProps {
@@ -54,6 +55,14 @@ export class Likes extends Construct {
 			{ DB_ADDRESS: props.db_url },
 		)
 
+		const removeLike = createLambda(
+			this,
+			"removeLike",
+			path.join(__dirname, "../lambdas/removeLike"),
+			hotReloadBucket,
+			{ DB_ADDRESS: props.db_url },
+		)
+
 		const api = new RestApi(this, "likesapi", {
 			restApiName: "likesapi",
 			description: "API for likes",
@@ -74,6 +83,9 @@ export class Likes extends Construct {
 		const getRoute = base.addResource(LikeRoute.GET)
 		const healthcheckGet = getRoute.addResource(LikeRoute.HEALTHCHECK)
 
+		const delteRoute = base.addResource(LikeRoute.DELETE)
+		const healthcheckDelete = delteRoute.addResource(LikeRoute.HEALTHCHECK)
+
 		const likeCreateIntegration = new LambdaIntegration(postLikes)
 		healthcheckCreate.addMethod("GET", likeCreateIntegration)
 		post.addMethod("POST", likeCreateIntegration)
@@ -83,6 +95,12 @@ export class Likes extends Construct {
 		healthcheckGet.addMethod("GET", likeGetIntegration)
 		post.addMethod("GET", likeGetIntegration)
 		comment.addMethod("GET", likeGetIntegration)
+
+		const likeDeleteIntegration = new LambdaIntegration(removeLike)
+		post.addMethod("DELETE", likeDeleteIntegration)
+		comment.addMethod("DELETE", likeDeleteIntegration)
+		healthcheckDelete.addMethod("GET", likeDeleteIntegration)
+
 
 
 		new CfnOutput(this, "GatewayId", { value: api.restApiId })

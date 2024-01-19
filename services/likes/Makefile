@@ -9,6 +9,7 @@ build/lambdas:
 	@echo "Building likes go app"
 	cd ./lambdas/postLike && make build && make zip
 	cd ./lambdas/getLikes && make build && make zip
+	cd ./lambdas/removeLike && make build && make zip
 
 ## tidy/lambdas: go mod tidy for all lambdas
 .PHONY: tidy/lambdas
@@ -16,3 +17,4 @@ tidy/lambdas:
 	@echo "Tidying app modules"
 	cd ./lambdas/postLike && go mod tidy
 	cd ./lambdas/getLikes && go mod tidy
+	cd ./lambdas/removeLike && go mod tidy
