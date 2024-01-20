@@ -9,6 +9,7 @@ import (
 
 	"net/http"
 
+	"events/posts/models"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/chi"
 	"github.com/go-chi/chi/v5"
@@ -18,7 +19,7 @@ import (
 var chiLambda *chiadapter.ChiLambda
 
 type app struct {
-	models Models
+	models models.Models
 }
 
 func openDB() (*sql.DB, error) {
@@ -45,7 +46,7 @@ func init() {
 		panic(err)
 	}
 
-	app := app{models: NewModels(db)}
+	app := app{models: models.NewModels(db)}
 	r := chi.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {

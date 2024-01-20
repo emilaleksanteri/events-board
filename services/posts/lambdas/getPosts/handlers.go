@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"events/posts/models"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/go-chi/chi/v5"
 )
@@ -66,7 +67,7 @@ func (app *app) getPostHandler(w http.ResponseWriter, r *http.Request) {
 	post, err := app.models.Posts.Get(int64(id), take, skip)
 	if err != nil {
 		switch {
-		case errors.Is(err, ErrRecordNotFound):
+		case errors.Is(err, models.ErrRecordNotFound):
 			app.notFoundHandler(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
