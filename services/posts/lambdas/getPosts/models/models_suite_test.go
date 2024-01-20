@@ -155,6 +155,15 @@ var _ = Describe("getting posts", Label("unit"), func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(posts)).Should(BeNumerically(">", 0))
 			})
+			It("should return posts in the same order when posts have not changed in db", func() {
+				posts, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+
+				posts2, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(posts).To(Equal(posts2))
+			})
 			It("should have user with profile picture, username and id", func() {
 				posts, _, err := models.Posts.List(10, 0)
 				Expect(err).ToNot(HaveOccurred())
@@ -275,7 +284,6 @@ var _ = Describe("getting posts", Label("unit"), func() {
 						panic(err)
 					}
 				})
-
 				It("has metadata that shows num of comments", func() {
 					posts, _, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
@@ -356,6 +364,15 @@ var _ = Describe("getting posts", Label("unit"), func() {
 					Expect(post.Comments[0].User.Id).To(Equal(userId))
 					Expect(post.Comments[0].User.Username).To(Equal(username))
 					Expect(post.Comments[0].User.ProfilePicture).To(Equal(profilePicture))
+				})
+				It("should return same comments in the same order for a post when comments haven't changed", func() {
+					post, err := models.Posts.Get(postId, 10, 0)
+					Expect(err).ToNot(HaveOccurred())
+
+					post2, err := models.Posts.Get(postId, 10, 0)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(post.Comments).To(Equal(post2.Comments))
 				})
 				It("should be able to use pagination on post comments", func() {
 					post, err := models.Posts.Get(postId, 5, 0)
