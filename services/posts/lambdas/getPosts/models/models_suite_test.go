@@ -68,6 +68,14 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("getting a list of posts", Label("unit"), func() {
+	When("there are no posts in the db", func() {
+		It("should return an empty slice", func() {
+			posts, _, err := models.Posts.List(10, 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(posts).To(BeEmpty())
+		})
+	})
+
 	When("there are posts in the db", func() {
 		BeforeEach(func() {
 			query := `
@@ -156,6 +164,102 @@ var _ = Describe("getting a list of posts", Label("unit"), func() {
 				_, metadata, err := models.Posts.List(10, 0)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(metadata.PageSize).To(Equal(10))
+			})
+		})
+
+		When("posts have no comments", func() {
+			It("post metadata should have 0 comments indicated", func() {
+				posts, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(posts[0].Metadata.CommentsCount).To(Equal(0))
+			})
+			It("post metadata should show last comment as empty string", func() {
+				posts, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(posts[0].Metadata.LatestComment).To(Equal(""))
+			})
+			It("post metadata last comment at should be empty time", func() {
+				posts, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(posts[0].Metadata.LastCommentAt).To(Equal(time.Time{}))
+			})
+			It("post comments should be nil", func() {
+				posts, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(posts[0].Post.Comments).To(BeNil())
+			})
+		})
+
+		When("posts have comments", func() {
+			BeforeEach(func() {
+				var postsIds []int64
+				query := `
+					select id from posts
+				`
+
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				rows, err := conn.QueryContext(ctx, query)
+				if err != nil {
+					panic(err)
+				}
+
+				defer rows.Close()
+
+				for rows.Next() {
+					var postId int64
+					err := rows.Scan(&postId)
+					if err != nil {
+						panic(err)
+					}
+
+					postsIds = append(postsIds, postId)
+				}
+
+				if err = rows.Err(); err != nil {
+					panic(err)
+				}
+
+				for _, postId := range postsIds {
+					query := `
+					insert into comments (body, user_id, post_id, path) values 
+					('hello world', $1, $2, '0')
+					`
+
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+
+					_, err := conn.ExecContext(ctx, query, userId, postId)
+					if err != nil {
+						panic(err)
+					}
+				}
+			})
+
+			AfterEach(func() {
+				query := `
+				delete from comments
+				`
+
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				_, err := conn.ExecContext(ctx, query)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("post metadata should show num of comments", func() {
+				posts, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(posts[0].Metadata.CommentsCount).To(Equal(1))
+			})
+			It("post metadata should show last comment body", func() {
+				posts, _, err := models.Posts.List(10, 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(posts[0].Metadata.LatestComment).To(Equal("hello world"))
 			})
 		})
 	})
