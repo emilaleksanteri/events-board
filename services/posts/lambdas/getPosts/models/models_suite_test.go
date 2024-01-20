@@ -185,7 +185,7 @@ var _ = Describe("getting posts", Label("unit"), func() {
 			})
 
 			When("10 posts are taken, metadata should reflect that", func() {
-				It("page size is 10", func() {
+				It("has page size metadata as 10", func() {
 					_, metadata, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(metadata.PageSize).To(Equal(10))
@@ -193,22 +193,22 @@ var _ = Describe("getting posts", Label("unit"), func() {
 			})
 
 			When("posts have no comments", func() {
-				It("post metadata should have 0 comments indicated", func() {
+				It("shows post metadata with 0 comments indicated", func() {
 					posts, _, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(posts[0].Metadata.CommentsCount).To(Equal(0))
 				})
-				It("post metadata should show last comment as empty string", func() {
+				It("shows post metadata with last comment as empty string", func() {
 					posts, _, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(posts[0].Metadata.LatestComment).To(Equal(""))
 				})
-				It("post metadata last comment at should be empty time", func() {
+				It("shows post metadata with last comment at as empty time", func() {
 					posts, _, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(posts[0].Metadata.LastCommentAt).To(Equal(time.Time{}))
 				})
-				It("post comments should be nil", func() {
+				It("shows post comments as nil", func() {
 					posts, _, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(posts[0].Post.Comments).To(BeNil())
@@ -276,12 +276,12 @@ var _ = Describe("getting posts", Label("unit"), func() {
 					}
 				})
 
-				It("post metadata should show num of comments", func() {
+				It("has metadata that shows num of comments", func() {
 					posts, _, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(posts[0].Metadata.CommentsCount).To(Equal(1))
 				})
-				It("post metadata should show last comment body", func() {
+				It("metadata that shows last comment body", func() {
 					posts, _, err := models.Posts.List(10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(posts[0].Metadata.LatestComment).To(Equal("hello world"))
@@ -296,7 +296,7 @@ var _ = Describe("getting posts", Label("unit"), func() {
 				Expect(post.Body).ToNot(Equal(""))
 			})
 
-			It("post should have a user", func() {
+			It("should return a post with an user", func() {
 				post, err := models.Posts.Get(postId, 10, 0)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(post.User.Id).To(Equal(userId))
@@ -422,12 +422,12 @@ var _ = Describe("getting posts", Label("unit"), func() {
 					}
 				})
 
-				It("a post comment should show number of sub comments", func() {
+				It("should return a post comment with number of sub comments", func() {
 					post, err := models.Posts.Get(postId, 10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(post.Comments[0].NumOfSubComments).To(Equal(numOfSubComments))
 				})
-				It("comment sub comments should be an empty slice", func() {
+				It("should return a post with comments that have sub comments as an empty slice", func() {
 					post, err := models.Posts.Get(postId, 10, 0)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(post.Comments[0].SubComments).To(Equal([]Comment{}))
