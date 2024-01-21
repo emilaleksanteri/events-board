@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"database/sql"
 	"path/filepath"
 	"time"
 
