@@ -3,6 +3,7 @@ Real time feed application built on aws infrastructure in microservices architec
 
 # Dev
 Make sure to have [cdklocal](https://github.com/localstack/aws-cdk-local), [docker](https://docs.docker.com/engine/install/) and [migrate](https://github.com/golang-migrate/migrate) installed
+for testing make sure to have [ginkgo](https://github.com/onsi/ginkgo) working and meet the requirements for [testcontainers](https://golang.testcontainers.org/)
 
 Having [awslocal](https://github.com/localstack/awscli-local) can also help with local dev to browse resources within localstack
 
