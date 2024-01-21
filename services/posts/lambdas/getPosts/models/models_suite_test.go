@@ -34,7 +34,7 @@ var _ = BeforeSuite(func() {
 	}
 	container = postgres
 
-	dbConn, err := GetDb(container.ConnectionString)
+	dbConn, err := OpenDB(container.ConnectionString)
 	if err != nil {
 		panic(err)
 	}

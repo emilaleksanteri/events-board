@@ -2,12 +2,8 @@ package main
 
 import (
 	"context"
-	"os"
-
-	"database/sql"
-	"time"
-
 	"net/http"
+	"os"
 
 	"events/posts/models"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -22,26 +18,9 @@ type app struct {
 	models models.Models
 }
 
-func openDB() (*sql.DB, error) {
-	addr := os.Getenv("DB_ADDRESS")
-	db, err := sql.Open("postgres", addr)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = db.PingContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
-}
-
 func init() {
-	db, err := openDB()
+	addr := os.Getenv("DB_ADDRESS")
+	db, err := models.OpenDB(addr)
 	if err != nil {
 		panic(err)
 	}

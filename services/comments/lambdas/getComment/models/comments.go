@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"context"
@@ -34,7 +34,7 @@ type Comment struct {
 	User             User      `json:"user"`
 }
 
-func (c *CommentModel) getComment(commentId int64, take, offset int) (Comment, error) {
+func (c *CommentModel) GetComment(commentId int64, take, offset int) (Comment, error) {
 	query := `
 	WITH main_comment as (
 		SELECT comments.id, comments.post_id, comments.body, comments.created_at, 
@@ -109,12 +109,12 @@ func (c *CommentModel) getComment(commentId int64, take, offset int) (Comment, e
 			return comment, err
 		}
 
-		tempParentIdInt, err := strconv.ParseInt(tempParentId, 10, 64)
+		parentIdInt, err := strconv.ParseInt(tempParentId, 10, 64)
 		if err != nil {
 			return comment, err
 		}
 
-		tempComment.ParentId = tempParentIdInt
+		tempComment.ParentId = parentIdInt
 		tempComment.NumOfSubComments = numSubComments
 		tempComment.User = user
 

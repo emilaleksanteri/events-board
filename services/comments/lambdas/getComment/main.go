@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"os"
-	"time"
 
+	"getComment/models"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/chi"
@@ -16,34 +15,17 @@ import (
 var chiLambda *chiadapter.ChiLambda
 
 type app struct {
-	models Models
-}
-
-func openDB() (*sql.DB, error) {
-	addr := os.Getenv("DB_ADDRESS")
-	db, err := sql.Open("postgres", addr)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = db.PingContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
+	models models.Models
 }
 
 func init() {
-	db, err := openDB()
+	addr := os.Getenv("DB_ADDRESS")
+	db, err := models.OpenDB(addr)
 	if err != nil {
 		panic(err)
 	}
 
-	app := app{models: NewModels(db)}
+	app := app{models: models.NewModels(db)}
 	r := chi.NewRouter()
 	r.Route("/comments", func(r chi.Router) {
 		r.Get("/healthcheck", app.healthcheckHandler)

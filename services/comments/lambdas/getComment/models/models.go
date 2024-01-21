@@ -7,7 +7,7 @@ import (
 )
 
 type Models struct {
-	Posts PostModel
+	Comments CommentModel
 }
 
 func OpenDB(addr string) (*sql.DB, error) {
@@ -29,6 +29,6 @@ func OpenDB(addr string) (*sql.DB, error) {
 
 func NewModels(db *sql.DB) Models {
 	return Models{
-		Posts: PostModel{DB: db},
+		Comments: CommentModel{DB: db},
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"getComment/models"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -27,10 +28,10 @@ func (app *app) getCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	comment, err := app.models.Comments.getComment(commentId, take, offset)
+	comment, err := app.models.Comments.GetComment(commentId, take, offset)
 	if err != nil {
 		switch {
-		case errors.Is(err, ErrRecordNotFound):
+		case errors.Is(err, models.ErrRecordNotFound):
 			app.notFoundHandler(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)

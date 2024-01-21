@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"database/sql"
 	"path/filepath"
 	"time"
 
@@ -20,7 +19,7 @@ type PostgresContainer struct {
 func CreatePostgresContainer(ctx context.Context) (*PostgresContainer, error) {
 	pgContainer, err := postgres.RunContainer(ctx,
 		testcontainers.WithImage("docker.io/postgres:15.2-alpine"),
-		postgres.WithInitScripts(filepath.Join("..", "postMigrations", "migrate-test.sql")),
+		postgres.WithInitScripts(filepath.Join("..", "commentMigrations", "migrate-test.sql")),
 		postgres.WithDatabase("postgres"),
 		postgres.WithUsername("postgres"),
 		postgres.WithPassword("postgres"),
