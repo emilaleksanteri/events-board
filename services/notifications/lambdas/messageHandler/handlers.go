@@ -14,6 +14,7 @@ const (
 	POST_ADDED_EVENT        = "PostAdded"
 	SUB_COMMENT_ADDED_EVENT = "SubCommentAdded"
 	COMMENT_ADDED_EVENT     = "CommentAdded"
+	POST_LIKE_EVENT         = "PostLike"
 )
 
 type PostAddedEvent struct {
@@ -45,6 +46,14 @@ type SubCommentAddedEvent struct {
 	ChildCommentCreatedAt    time.Time `json:"childCommentCreatedAt"`
 	ChildCommentBodyPreview  string    `json:"childCommentBody"`
 	EventType                string    `json:"eventType"`
+}
+
+type PostLikeEvent struct {
+	PostId         int64     `json:"post_id"`
+	PostUserId     int64     `json:"post_user_id"`
+	PostLikeUserId int64     `json:"post_like_user_id"`
+	EventType      string    `json:"event_type"`
+	LikedAt        time.Time `json:"liked_at"`
 }
 
 type Event struct {
@@ -99,6 +108,20 @@ func (app *App) handler(event events.CloudWatchEvent) error {
 		}
 
 		conns, err = app.getAuthorConnection(eventData.ParentCommentUserId)
+		if err != nil {
+			fmt.Printf("Could not get connections: %v\n", eventData)
+			return err
+		}
+
+	case POST_LIKE_EVENT:
+		var eventData PostLikeEvent
+		err = json.Unmarshal(event.Detail, &eventData)
+		if err != nil {
+			fmt.Printf("Could not unmarshal event: %v\n", event.Detail)
+			return err
+		}
+
+		conns, err = app.getAuthorConnection(eventData.PostUserId)
 		if err != nil {
 			fmt.Printf("Could not get connections: %v\n", eventData)
 			return err

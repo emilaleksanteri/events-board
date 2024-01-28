@@ -22,11 +22,13 @@ export class PubSub extends Stack {
 
 		new Posts(this, "PostsStack", { db_url: db_url, eventBus });
 		new Comments(this, "CommentsStack", { db_url: db_url, eventBus });
+		/**
 		new Notifications(
 			this,
 			"NotificationsStack",
 			{ regionsToReplicate, region, account, isProd, db_url, eventBus }
 		);
+		*/
 		new Likes(this, "LikesStack", { db_url: db_url, eventBus });
 	}
 }
