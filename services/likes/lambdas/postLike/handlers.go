@@ -102,7 +102,7 @@ func (app *app) likeCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	new_likes, err := app.models.Comment.updateCommentLikes(commentId)
+	new_likes, commentUserId, err := app.models.Comment.updateCommentLikes(commentId)
 	if err != nil {
 		fmt.Printf("failed to update comment with like\n")
 		err := app.models.Like.undoCommentLike(commentLike)
@@ -113,6 +113,13 @@ func (app *app) likeCommentHandler(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
+
+	go func() {
+		err := app.publishCommentLike(commentId, commentUserId, tempUserId)
+		if err != nil {
+			fmt.Printf("failed to publish comment like event\n")
+		}
+	}()
 
 	err = app.writeJSON(
 		w,
