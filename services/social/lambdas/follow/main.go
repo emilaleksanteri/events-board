@@ -59,6 +59,10 @@ func init() {
 
 	app := app{models: NewModels(db), eb: NewEventBridge()}
 	r := chi.NewRouter()
+	r.Route("/v1", func(r chi.Router) {
+		r.Post("/follow/{user}", app.follow)
+	})
+
 	r.NotFound(app.notFoundHandler)
 
 	chiLambda = chiadapter.New(r)
