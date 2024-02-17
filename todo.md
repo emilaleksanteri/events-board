@@ -7,9 +7,6 @@
     - makes/deletes connections on social graph
     - add follower and followers count on user table
 
-- like service for liking posts
-    - on like update in db, push event to event bridge
-
 - auth service for authentication
     - on auth, make session, save in dynamoDB
 

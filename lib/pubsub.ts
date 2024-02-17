@@ -5,6 +5,7 @@ import { Posts } from "../services/posts/lib/posts-stack";
 import { Notifications } from "../services/notifications/lib/notification";
 import { Likes } from "../services/likes/lib/likes";
 import * as events from 'aws-cdk-lib/aws-events';
+import { Social } from "../services/social/lib/social";
 
 export class PubSub extends Stack {
 	constructor(scope: Construct, id: string, props?: StackProps) {
@@ -30,5 +31,6 @@ export class PubSub extends Stack {
 		);
 		*/
 		new Likes(this, "LikesStack", { db_url: db_url, eventBus });
+		new Social(this, "SocialStack", { db_url: db_url, eventBus });
 	}
 }
